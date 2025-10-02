@@ -1,0 +1,12 @@
+{
+    "servers": {
+        "casual-market": {
+            "command": "uvx",
+            "args": [
+                "--from",
+                ".",
+                "casual-market-mcp"
+            ]
+        }
+    }
+}

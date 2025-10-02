@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "casual-market": {
+      "command": "uvx",
+      "args": ["--from", "/path/to/CasualMarket", "casual-market-mcp"],
+      "env": {
+        "MARKET_MCP_SERVER_VERSION": "1.0.0",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}

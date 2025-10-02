@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "執行 TWSE Client",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "market_mcp.api.twse_client",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/.venv/bin/python3",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
+        }
+    ]
+}
