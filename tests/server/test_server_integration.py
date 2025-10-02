@@ -7,8 +7,7 @@ MCP 服務器整合測試。
 import unittest
 from unittest.mock import patch
 
-from src.server import MCPServer
-from src.tools.trading_tool import get_trading_tool_definitions
+from src.server import mcp
 
 
 class TestServerIntegration(unittest.TestCase):
@@ -16,19 +15,26 @@ class TestServerIntegration(unittest.TestCase):
 
     def setUp(self):
         """設置測試環境。"""
-        with patch("market_mcp.server.setup_logging"):
-            self.server = MCPServer()
+        # No need to instantiate MCPServer, just ensure mcp is available
+        pass
 
     def test_trading_tools_registered(self):
         """測試交易工具是否正確註冊。"""
-        # 取得交易工具定義
-        trading_defs = get_trading_tool_definitions()
+        # 取得所有工具定義
+        all_tool_defs = [tool for tool in mcp.get_tools()]
+
+        # 過濾出交易工具
+        trading_defs = [
+            tool_def
+            for tool_def in all_tool_defs
+            if tool_def.name in ["buy_taiwan_stock", "sell_taiwan_stock"]
+        ]
 
         # 驗證有兩個交易工具
         self.assertEqual(len(trading_defs), 2)
 
         # 驗證工具名稱
-        tool_names = [tool_def["name"] for tool_def in trading_defs]
+        tool_names = [tool_def.name for tool_def in trading_defs]
         self.assertIn("buy_taiwan_stock", tool_names)
         self.assertIn("sell_taiwan_stock", tool_names)
 
@@ -36,20 +42,20 @@ class TestServerIntegration(unittest.TestCase):
         for tool_def in trading_defs:
             self.assertIn("name", tool_def)
             self.assertIn("description", tool_def)
-            self.assertIn("inputSchema", tool_def)
-            self.assertIn("properties", tool_def["inputSchema"])
-            self.assertIn("required", tool_def["inputSchema"])
+            self.assertIn("inputSchema", tool_def.get_definition())
+            self.assertIn("properties", tool_def.get_definition()["inputSchema"])
+            self.assertIn("required", tool_def.get_definition()["inputSchema"])
 
             # 檢查必要參數
-            required_fields = tool_def["inputSchema"]["required"]
+            required_fields = tool_def.get_definition()["inputSchema"]["required"]
             self.assertIn("symbol", required_fields)
-            self.assertIn("price", required_fields)
+            self.assertIn("quantity", required_fields) # Changed from price to quantity
 
     def test_server_initialization(self):
         """測試服務器初始化。"""
-        # 驗證服務器對象已創建
-        self.assertIsNotNone(self.server.server)
-        self.assertEqual(self.server.server.name, "market-mcp-server")
+        # 驗證 mcp 對象已創建
+        self.assertIsNotNone(mcp)
+        self.assertEqual(mcp.name, "casual-market-mcp")
 
 
 if __name__ == "__main__":

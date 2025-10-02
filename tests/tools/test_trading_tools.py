@@ -8,9 +8,9 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from src.tools.trading.stock_trading import StockTradingTool
+
 from src.models.stock_data import TWStockResponse
-from src.models.trading_models import OrderStatus, OrderType
-from src.tools.trading_tool import TradingTool
 
 
 class TestTradingTools(unittest.TestCase):
@@ -18,7 +18,7 @@ class TestTradingTools(unittest.TestCase):
 
     def setUp(self):
         """設置測試環境。"""
-        self.trading_tool = TradingTool()
+        self.trading_tool = StockTradingTool()
 
     def test_commission_calculation(self):
         """測試手續費計算。"""
@@ -33,8 +33,8 @@ class TestTradingTools(unittest.TestCase):
         commission = self.trading_tool._calculate_commission(amount)
         self.assertEqual(commission, 20.0)  # 最低手續費
 
-    @patch("market_mcp.tools.trading_tool.TWStockAPIClient")
-    @patch("market_mcp.tools.trading_tool.MCPToolInputValidator")
+    @patch("src.tools.trading.stock_trading.TWStockAPIClient")
+    @patch("src.tools.trading.stock_trading.MCPToolInputValidator")
     async def test_buy_success(self, mock_validator, mock_client):
         """測試成功買入。"""
         # 模擬驗證器回傳
@@ -70,7 +70,7 @@ class TestTradingTools(unittest.TestCase):
         mock_client.return_value = mock_client_instance
 
         # 建立新的工具實例
-        tool = TradingTool()
+        tool = StockTradingTool()
 
         # 測試買入：買價 >= 最低賣價
         arguments = {"symbol": "2330", "price": 580.0, "quantity": 1}
@@ -82,8 +82,8 @@ class TestTradingTools(unittest.TestCase):
         self.assertIn("交易成功", result[0]["text"])
         self.assertIn("580", result[0]["text"])  # 成交價格
 
-    @patch("market_mcp.tools.trading_tool.TWStockAPIClient")
-    @patch("market_mcp.tools.trading_tool.MCPToolInputValidator")
+    @patch("src.tools.trading.stock_trading.TWStockAPIClient")
+    @patch("src.tools.trading.stock_trading.MCPToolInputValidator")
     async def test_buy_failure(self, mock_validator, mock_client):
         """測試買入失敗 (價格不符)。"""
         # 模擬驗證器回傳
@@ -119,7 +119,7 @@ class TestTradingTools(unittest.TestCase):
         mock_client.return_value = mock_client_instance
 
         # 建立新的工具實例
-        tool = TradingTool()
+        tool = StockTradingTool()
 
         # 測試買入失敗：買價 < 最低賣價
         arguments = {"symbol": "2330", "price": 575.0, "quantity": 1}
@@ -131,8 +131,8 @@ class TestTradingTools(unittest.TestCase):
         self.assertIn("交易失敗", result[0]["text"])
         self.assertIn("低於市場最低賣價", result[0]["text"])
 
-    @patch("market_mcp.tools.trading_tool.TWStockAPIClient")
-    @patch("market_mcp.tools.trading_tool.MCPToolInputValidator")
+    @patch("src.tools.trading.stock_trading.TWStockAPIClient")
+    @patch("src.tools.trading.stock_trading.MCPToolInputValidator")
     async def test_sell_success(self, mock_validator, mock_client):
         """測試成功賣出。"""
         # 模擬驗證器回傳
@@ -168,7 +168,7 @@ class TestTradingTools(unittest.TestCase):
         mock_client.return_value = mock_client_instance
 
         # 建立新的工具實例
-        tool = TradingTool()
+        tool = StockTradingTool()
 
         # 測試賣出：賣價 <= 最高買價
         arguments = {"symbol": "2330", "price": 579.0, "quantity": 1}
@@ -180,8 +180,8 @@ class TestTradingTools(unittest.TestCase):
         self.assertIn("交易成功", result[0]["text"])
         self.assertIn("579", result[0]["text"])  # 成交價格
 
-    @patch("market_mcp.tools.trading_tool.TWStockAPIClient")
-    @patch("market_mcp.tools.trading_tool.MCPToolInputValidator")
+    @patch("src.tools.trading.stock_trading.TWStockAPIClient")
+    @patch("src.tools.trading.stock_trading.MCPToolInputValidator")
     async def test_sell_failure(self, mock_validator, mock_client):
         """測試賣出失敗 (價格不符)。"""
         # 模擬驗證器回傳
@@ -217,7 +217,7 @@ class TestTradingTools(unittest.TestCase):
         mock_client.return_value = mock_client_instance
 
         # 建立新的工具實例
-        tool = TradingTool()
+        tool = StockTradingTool()
 
         # 測試賣出失敗：賣價 > 最高買價
         arguments = {"symbol": "2330", "price": 585.0, "quantity": 1}

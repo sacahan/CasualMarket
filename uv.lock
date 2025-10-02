@@ -86,6 +86,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "requests" },
+    { name = "ruff" },
     { name = "scipy" },
 ]
 
@@ -127,6 +128,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.10.0" },
     { name = "requests", specifier = ">=2.31.0" },
+    { name = "ruff", specifier = ">=0.13.2" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "scipy", specifier = ">=1.16.2" },
 ]

@@ -4,14 +4,13 @@ Tests all components: RateLimiter, CacheManager, RequestTracker, and RateLimited
 """
 
 import asyncio
-import pytest
-import time
-from unittest.mock import AsyncMock, patch
 
-from src.cache.rate_limiter import RateLimiter
+import pytest
+
 from src.cache.cache_manager import CacheManager
-from src.cache.request_tracker import RequestTracker
 from src.cache.rate_limited_cache_service import RateLimitedCacheService
+from src.cache.rate_limiter import RateLimiter
+from src.cache.request_tracker import RequestTracker
 from src.utils.config_manager import ConfigManager
 
 

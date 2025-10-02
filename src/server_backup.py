@@ -5,21 +5,21 @@
 
 from fastmcp import FastMCP
 
-# 新架構工具導入
-from .tools.trading import StockPriceTool, StockTradingTool, DailyTradingTool
+# API 客戶端導入
+from .api.twse_client import create_client
 from .tools.financial import (
-    FinancialStatementsTool,
     CompanyProfileTool,
     DividendTool,
+    FinancialStatementsTool,
     RevenueTool,
     ValuationTool,
 )
 
-# API 客戶端導入
-from .api.twse_client import create_client
+# 新架構工具導入
+from .tools.trading import DailyTradingTool, StockPriceTool, StockTradingTool
 
 # 設置日誌
-from .utils.logging import setup_logging, get_logger
+from .utils.logging import get_logger, setup_logging
 
 setup_logging()
 logger = get_logger(__name__)

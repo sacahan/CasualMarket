@@ -2,9 +2,12 @@
 Basic integration test for the enhanced CasualTrader with TWSE financial analysis.
 """
 
-import pytest
 import asyncio
-from src.tools.analysis.financials import FinancialAnalysisTool
+
+import pytest
+from src.tools.financial.company_profile import CompanyProfileTool
+from src.tools.financial.statements import FinancialStatementsTool
+
 from src.api.openapi_client import OpenAPIClient
 from src.cache.rate_limited_cache_service import RateLimitedCacheService
 
@@ -18,38 +21,44 @@ class TestFinancialIntegration:
         return RateLimitedCacheService()
 
     @pytest.fixture
-    def financial_tool(self, cache_service):
-        """Create a financial analysis tool for testing."""
-        return FinancialAnalysisTool(cache_service)
+    def company_profile_tool(self, cache_service):
+        """Create a company profile tool for testing."""
+        return CompanyProfileTool()
+
+    @pytest.fixture
+    def financial_statements_tool(self, cache_service):
+        """Create a financial statements tool for testing."""
+        return FinancialStatementsTool()
 
     @pytest.fixture
     def openapi_client(self, cache_service):
         """Create an OpenAPI client for testing."""
-        return OpenAPIClient(cache_service)
+        return OpenAPIClient()
 
-    def test_financial_tool_initialization(self, financial_tool):
-        """Test that the financial tool initializes correctly."""
-        assert financial_tool is not None
-        assert hasattr(financial_tool, "api_client")
-        assert isinstance(financial_tool.api_client, OpenAPIClient)
+    def test_company_profile_tool_initialization(self, company_profile_tool):
+        """Test that the company profile tool initializes correctly."""
+        assert company_profile_tool is not None
+        assert hasattr(company_profile_tool, "api_client")
+        assert isinstance(company_profile_tool.api_client, OpenAPIClient)
 
     def test_openapi_client_initialization(self, openapi_client):
         """Test that the OpenAPI client initializes correctly."""
         assert openapi_client is not None
         assert openapi_client.BASE_URL == "https://openapi.twse.com.tw/v1"
-        assert openapi_client.USER_AGENT == "CasualTrader-MCP/2.0"
+        assert openapi_client.USER_AGENT == "CasualMarket-MCP/2.0"
 
-    def test_industry_suffix_mapping(self, openapi_client):
+    @pytest.mark.asyncio
+    async def test_industry_suffix_mapping(self, openapi_client):
         """Test the industry suffix mapping logic."""
         # Test default case
-        suffix = openapi_client.get_industry_api_suffix("INVALID")
+        suffix = await openapi_client.get_industry_api_suffix("INVALID")
         assert suffix == "_ci"  # Should default to general industry
 
     @pytest.mark.asyncio
-    async def test_company_profile_structure(self, financial_tool):
+    async def test_company_profile_structure(self, company_profile_tool):
         """Test the structure of company profile response."""
         # Test with Taiwan Semiconductor (2330) - a well-known stock
-        result = await financial_tool.get_company_profile("2330")
+        result = await company_profile_tool.safe_execute(symbol="2330")
 
         # Check response structure
         assert isinstance(result, dict)
@@ -64,10 +73,10 @@ class TestFinancialIntegration:
             assert result["source"] == "TWSE OpenAPI"
 
     @pytest.mark.asyncio
-    async def test_income_statement_structure(self, financial_tool):
+    async def test_income_statement_structure(self, financial_statements_tool):
         """Test the structure of income statement response."""
         # Test with Taiwan Semiconductor (2330)
-        result = await financial_tool.get_income_statement("2330")
+        result = await financial_statements_tool.get_income_statement("2330")
 
         # Check response structure
         assert isinstance(result, dict)
@@ -83,10 +92,10 @@ class TestFinancialIntegration:
             assert result["company_code"] == "2330"
 
     @pytest.mark.asyncio
-    async def test_balance_sheet_structure(self, financial_tool):
+    async def test_balance_sheet_structure(self, financial_statements_tool):
         """Test the structure of balance sheet response."""
         # Test with Taiwan Semiconductor (2330)
-        result = await financial_tool.get_balance_sheet("2330")
+        result = await financial_statements_tool.get_balance_sheet("2330")
 
         # Check response structure
         assert isinstance(result, dict)
@@ -110,9 +119,9 @@ class TestFinancialIntegration:
         assert hasattr(cache_service, "can_make_request")
 
     @pytest.mark.asyncio
-    async def test_error_handling_invalid_symbol(self, financial_tool):
+    async def test_error_handling_invalid_symbol(self, company_profile_tool):
         """Test error handling with invalid stock symbol."""
-        result = await financial_tool.get_company_profile("INVALID_SYMBOL")
+        result = await company_profile_tool.safe_execute(symbol="INVALID_SYMBOL")
 
         # Should return a structured error response
         assert isinstance(result, dict)
@@ -129,20 +138,21 @@ if __name__ == "__main__":
     # Run basic test manually if executed directly
     async def manual_test():
         cache_service = RateLimitedCacheService()
-        financial_tool = FinancialAnalysisTool(cache_service)
+        company_profile_tool = CompanyProfileTool()
+        financial_statements_tool = FinancialStatementsTool()
 
         print("Testing CasualTrader Financial Integration...")
 
         # Test company profile
-        result = await financial_tool.get_company_profile("2330")
+        result = await company_profile_tool.safe_execute(symbol="2330")
         print(f"Company Profile Test: {'✓' if result['success'] else '✗'}")
 
         # Test income statement
-        result = await financial_tool.get_income_statement("2330")
+        result = await financial_statements_tool.get_income_statement("2330")
         print(f"Income Statement Test: {'✓' if result['success'] else '✗'}")
 
         # Test balance sheet
-        result = await financial_tool.get_balance_sheet("2330")
+        result = await financial_statements_tool.get_balance_sheet("2330")
         print(f"Balance Sheet Test: {'✓' if result['success'] else '✗'}")
 
         print("Integration test completed!")

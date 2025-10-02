@@ -6,6 +6,7 @@ Simulates real-world usage of the Taiwan Stock Exchange API protection.
 
 import asyncio
 import time
+
 from src.cache.rate_limited_cache_service import RateLimitedCacheService
 from src.utils.config_manager import ConfigManager
 
@@ -64,10 +65,10 @@ async def demonstrate_rate_limiting():
     service = RateLimitedCacheService(config)
 
     print("\n📋 Configuration:")
-    print(f"   • Per stock: 1 request every 2 seconds")
-    print(f"   • Global: 5 requests per minute")
-    print(f"   • Per second: 2 requests maximum")
-    print(f"   • Cache TTL: 3 seconds")
+    print("   • Per stock: 1 request every 2 seconds")
+    print("   • Global: 5 requests per minute")
+    print("   • Per second: 2 requests maximum")
+    print("   • Cache TTL: 3 seconds")
 
     # Test scenarios
     symbols = ["2330", "2317", "0050", "1101", "2454"]

@@ -4,11 +4,13 @@
 測試證交所 API 客戶端的各種功能，包含成功案例和錯誤處理。
 """
 
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from src.api.twse_client import create_client
-from src.models.stock_data import APIError, ValidationError, TWStockResponse
+from src.models.stock_data import APIError, TWStockResponse, ValidationError
 
 
 class TestTWStockAPIClient:

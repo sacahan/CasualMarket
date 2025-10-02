@@ -7,6 +7,7 @@ integrated with the Taiwan Stock Exchange API client.
 """
 
 import asyncio
+
 from src.api.twse_client import create_client
 
 
@@ -62,12 +63,12 @@ async def main():
         rate_config = config["rate_limiting"]
         cache_config = config["caching"]
 
-        print(f"\nRate limiting config:")
+        print("\nRate limiting config:")
         print(f"  • Per stock interval: {rate_config['per_stock_interval_seconds']}s")
         print(f"  • Global limit/min: {rate_config['global_limit_per_minute']}")
         print(f"  • Per second limit: {rate_config['per_second_limit']}")
 
-        print(f"\nCache config:")
+        print("\nCache config:")
         print(f"  • TTL: {cache_config['ttl_seconds']} seconds")
         print(f"  • Max size: {cache_config['max_size']} entries")
         print(f"  • Max memory: {cache_config['max_memory_mb']} MB")

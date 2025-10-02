@@ -1,89 +1,126 @@
 """
-Tests for the CasualTrader MCP Server basic functionality.
+Tests for the CasualTrader MCP Server basic functionality with FastMCP.
 
-This module contains basic tests for the MCP Server architecture
-and configuration management.
+This module contains basic tests for the FastMCP server architecture
+and tool registration.
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch, AsyncMock
 
-# from src.config import Config, get_config, reload_config  # Config 已被移除
-from src.server import MCPServer
-
-
-# class TestConfig:
-#     """Test configuration management."""
-#
-#     # 註釋：Config 類別已被移除，直接使用環境變數
-#
-#     def test_config_defaults(self):
-#         """Test default configuration values."""
-#         config = Config()
-#         assert config.server_name == "market-mcp-server"
-#         assert config.server_version == "1.0.0"
-#         assert config.max_concurrent_requests == 100
-#         assert config.rate_limit_per_second == 10
-#         assert config.rate_limit_per_symbol == 30
-#         assert config.cache_ttl == 30
-#         assert config.log_level == "INFO"
-#         assert config.debug is False
-#
-#     def test_get_config(self):
-#         """Test global config instance."""
-#         config = get_config()
-#         assert isinstance(config, Config)
-#         assert config.server_name == "market-mcp-server"
-#
-#     def test_reload_config(self):
-#         """Test configuration reload."""
-#         config = reload_config()
-#         assert isinstance(config, Config)
+# Import the mcp instance and the tool functions directly from src.server
+from src.server import mcp
 
 
-class TestMCPServer:
-    """Test MCP Server basic functionality."""
+class TestFastMCPServer:
+    """Test FastMCP Server basic functionality and tool registration."""
 
-    @pytest.fixture
-    def server(self):
-        """Create a test server instance."""
-        with patch("market_mcp.server.setup_logging"):
-            return MCPServer()
+    @pytest.fixture(autouse=True)
+    def mock_tool_dependencies(self):
+        """Mock external dependencies for tools."""
+        with patch("src.api.twse_client.create_client", return_value=AsyncMock()) as mock_create_client, \
+             patch("src.securities_db.SecuritiesDatabase") as mock_securities_db:
+            # Mock the stock_client for StockPriceTool and StockTradingTool
+            mock_stock_client = AsyncMock()
+            mock_stock_client.get_stock_quote.return_value = AsyncMock(
+                symbol="2330",
+                company_name="台積電",
+                current_price=500.0,
+                change=10.0,
+                change_percent=0.02,
+                volume=1000000,
+                open_price=490.0,
+                high_price=505.0,
+                low_price=485.0,
+                previous_close=490.0,
+                upper_limit=539.0,
+                lower_limit=441.0,
+                bid_prices=[499.5, 499.0, 498.5, 498.0, 497.5],
+                bid_volumes=[100, 200, 150, 300, 250],
+                ask_prices=[500.0, 500.5, 501.0, 501.5, 502.0],
+                ask_volumes=[150, 100, 200, 180, 220],
+                update_time="2024-01-01T10:30:00",
+                last_trade_time="10:30:00",
+            )
+            mock_create_client.return_value = mock_stock_client
 
-    def test_server_initialization(self, server):
-        """Test server initialization."""
-        assert server is not None
-        assert hasattr(server, "config")
-        assert hasattr(server, "server")
-        assert hasattr(server, "logger")
+            # Mock SecuritiesDatabase for company name resolution
+            mock_db_instance = mock_securities_db.return_value
+            mock_db_instance.find_by_company_name.return_value = [
+                AsyncMock(stock_code="2330", company_name="台積電")
+            ]
+            mock_db_instance.find_by_stock_code.return_value = AsyncMock(
+                stock_code="2330", company_name="台積電"
+            )
+
+            yield
+
+    def test_mcp_instance_exists(self):
+        """Test that the FastMCP instance 'mcp' exists."""
+        assert mcp is not None
+        assert mcp.name == "casual-market-mcp"
+
+    def test_tool_registration(self):
+        """Test that expected tools are registered."""
+        registered_tool_names = {tool.name for tool in mcp.get_tools()}
+        
+        expected_tools = {
+            "get_taiwan_stock_price",
+            "buy_taiwan_stock",
+            "sell_taiwan_stock",
+            "get_stock_daily_trading",
+            "get_company_income_statement",
+            "get_company_balance_sheet",
+            "get_company_profile",
+            "get_company_dividend",
+            "get_company_monthly_revenue",
+            "get_stock_valuation_ratios",
+            "get_dividend_rights_schedule",
+            "get_stock_monthly_trading",
+            "get_stock_yearly_trading",
+            "get_stock_monthly_average",
+            "get_margin_trading_info",
+            "get_real_time_trading_stats",
+            "get_etf_regular_investment_ranking",
+            "get_market_index_info",
+            "get_market_historical_index",
+            "get_foreign_investment_by_industry",
+            "get_top_foreign_holdings",
+        }
+        
+        # Check if all expected tools are present
+        missing_tools = expected_tools - registered_tool_names
+        extra_tools = registered_tool_names - expected_tools
+
+        assert not missing_tools, f"Missing expected tools: {missing_tools}"
+        assert not extra_tools, f"Unexpected extra tools: {extra_tools}"
 
     @pytest.mark.asyncio
-    async def test_get_taiwan_stock_price_validation(self, server):
-        """Test stock price tool input validation."""
-        # Test missing symbol
-        with pytest.raises(ValueError, match="Symbol is required"):
-            await server._get_taiwan_stock_price({})
-
-        # Test invalid symbol format
-        with pytest.raises(ValueError, match="Symbol must be a 4-digit number"):
-            await server._get_taiwan_stock_price({"symbol": "abc"})
-
-        with pytest.raises(ValueError, match="Symbol must be a 4-digit number"):
-            await server._get_taiwan_stock_price({"symbol": "12345"})
-
-        # Test valid symbol
-        result = await server._get_taiwan_stock_price({"symbol": "2330"})
-        assert len(result) == 1
-        assert result[0]["type"] == "text"
-        assert "2330" in result[0]["text"]
+    async def test_get_taiwan_stock_price_functionality(self):
+        """Test the functionality of get_taiwan_stock_price tool."""
+        result = await mcp.call_tool("get_taiwan_stock_price", symbol="2330")
+        assert isinstance(result, dict)
+        assert result["status"] == "success"
+        assert result["data"]["symbol"] == "2330"
+        assert result["data"]["name"] == "台積電"
+        assert result["data"]["price"] == 500.0
 
     @pytest.mark.asyncio
-    async def test_list_tools(self, server):
-        """Test tools listing."""
-        # Simply verify that the server has been initialized properly
-        # and has the MCP server instance
-        assert server.server is not None
-        assert hasattr(server.server, "request_handlers")
+    async def test_buy_taiwan_stock_functionality(self):
+        """Test the functionality of buy_taiwan_stock tool."""
+        # Assuming a successful buy scenario with price matching ask_prices
+        result = await mcp.call_tool("buy_taiwan_stock", symbol="2330", quantity=1000, price=500.0)
+        assert isinstance(result, dict)
+        assert result["type"] == "text"
+        assert "交易成功" in result["text"]
+        assert "500.0" in result["text"]
 
-        # Test that the Taiwan stock price method exists
-        assert hasattr(server, "_get_taiwan_stock_price")
+    @pytest.mark.asyncio
+    async def test_sell_taiwan_stock_functionality(self):
+        """Test the functionality of sell_taiwan_stock tool."""
+        # Assuming a successful sell scenario with price matching bid_prices
+        result = await mcp.call_tool("sell_taiwan_stock", symbol="2330", quantity=1000, price=499.5)
+        assert isinstance(result, dict)
+        assert result["type"] == "text"
+        assert "交易成功" in result["text"]
+        assert "499.5" in result["text"]

@@ -4,10 +4,11 @@ Basic functionality test to verify task-003 implementation.
 """
 
 import asyncio
-from src.cache.rate_limiter import RateLimiter
+
 from src.cache.cache_manager import CacheManager
-from src.cache.request_tracker import RequestTracker
 from src.cache.rate_limited_cache_service import RateLimitedCacheService
+from src.cache.rate_limiter import RateLimiter
+from src.cache.request_tracker import RequestTracker
 from src.utils.config_manager import ConfigManager
 
 

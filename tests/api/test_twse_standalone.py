@@ -12,10 +12,15 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # 直接引入需要的模組
+from datetime import datetime
+
+# 複製 TWStockAPIClient 的核心邏輯
+import httpx
+
 from src.models.stock_data import (
+    APIError,
     StockQuoteRequest,
     TWStockResponse,
-    APIError,
     ValidationError,
 )
 from src.parsers.twse_parser import create_parser
@@ -23,10 +28,6 @@ from src.utils.validators import (
     determine_market_type,
     validate_taiwan_stock_symbol,
 )
-
-# 複製 TWStockAPIClient 的核心邏輯
-import httpx
-from datetime import datetime
 
 
 class SimpleTWStockAPIClient:
