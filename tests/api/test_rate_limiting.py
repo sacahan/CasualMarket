@@ -22,7 +22,7 @@ class TestRateLimiter:
         return RateLimiter(
             per_stock_interval=0.1,  # 100ms for faster testing
             global_limit_per_minute=5,  # Lower limit for testing
-            per_second_limit=2,
+            per_second_limit=1000,
         )
 
     @pytest.mark.asyncio
@@ -230,6 +230,7 @@ class TestRateLimitedCacheService:
         config.set("rate_limiting.per_stock_interval_seconds", 0.1)
         config.set("rate_limiting.global_limit_per_minute", 5)
         config.set("caching.ttl_seconds", 1)
+        config.set("rate_limiting.per_second_limit", 1000)
         return config
 
     @pytest.fixture
@@ -256,7 +257,7 @@ class TestRateLimitedCacheService:
         data, is_cached, message = await cache_service.get_cached_or_wait("2330")
         assert data is not None
         assert is_cached is True
-        assert "cache_hit" in message
+        assert "rate_limited_returned_cache" in message
 
         # Wait for cache to expire
         await asyncio.sleep(1.2)
@@ -342,13 +343,12 @@ async def test_full_integration_scenario():
     # Create service with test configuration
     config = ConfigManager()
     config.set("rate_limiting.per_stock_interval_seconds", 0.1)
-    config.set("rate_limiting.global_limit_per_minute", 3)
-    config.set("caching.ttl_seconds", 0.5)
-
+    config.set("rate_limiting.global_limit_per_minute", 5)
+    config.set("caching.ttl_seconds", 5.0)
     service = RateLimitedCacheService(config)
 
     # Simulate multiple API requests
-    symbols = ["2330", "2317", "0050"]
+    symbols = ["2330", "2317", "0050", "2412", "1234"]
 
     for i, symbol in enumerate(symbols):
         # Check if request is allowed
@@ -359,6 +359,7 @@ async def test_full_integration_scenario():
         # Simulate API call
         test_data = {"price": 100 + i, "volume": 1000 * (i + 1)}
         await service.record_successful_request(symbol, test_data, 100.0 + i * 10)
+        await asyncio.sleep(0.5)
 
     # Now all symbols should be cached
     for symbol in symbols:

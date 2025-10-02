@@ -60,9 +60,10 @@ class TestFastMCPServer:
         assert mcp is not None
         assert mcp.name == "casual-market-mcp"
 
-    def test_tool_registration(self):
+    @pytest.mark.asyncio
+    async def test_tool_registration(self):
         """Test that expected tools are registered."""
-        registered_tool_names = {tool.name for tool in mcp.get_tools()}
+        registered_tool_names = {tool for tool in await mcp.get_tools()}
         
         expected_tools = {
             "get_taiwan_stock_price",
@@ -98,7 +99,7 @@ class TestFastMCPServer:
     @pytest.mark.asyncio
     async def test_get_taiwan_stock_price_functionality(self):
         """Test the functionality of get_taiwan_stock_price tool."""
-        result = await mcp.call_tool("get_taiwan_stock_price", symbol="2330")
+        result = await mcp.call("get_taiwan_stock_price", symbol="2330")
         assert isinstance(result, dict)
         assert result["status"] == "success"
         assert result["data"]["symbol"] == "2330"
@@ -109,7 +110,7 @@ class TestFastMCPServer:
     async def test_buy_taiwan_stock_functionality(self):
         """Test the functionality of buy_taiwan_stock tool."""
         # Assuming a successful buy scenario with price matching ask_prices
-        result = await mcp.call_tool("buy_taiwan_stock", symbol="2330", quantity=1000, price=500.0)
+        result = await mcp.call("buy_taiwan_stock", symbol="2330", quantity=1000, price=500.0)
         assert isinstance(result, dict)
         assert result["type"] == "text"
         assert "交易成功" in result["text"]
@@ -119,7 +120,7 @@ class TestFastMCPServer:
     async def test_sell_taiwan_stock_functionality(self):
         """Test the functionality of sell_taiwan_stock tool."""
         # Assuming a successful sell scenario with price matching bid_prices
-        result = await mcp.call_tool("sell_taiwan_stock", symbol="2330", quantity=1000, price=499.5)
+        result = await mcp.call("sell_taiwan_stock", symbol="2330", quantity=1000, price=499.5)
         assert isinstance(result, dict)
         assert result["type"] == "text"
         assert "交易成功" in result["text"]

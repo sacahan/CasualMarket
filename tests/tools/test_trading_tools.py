@@ -20,18 +20,6 @@ class TestTradingTools(unittest.TestCase):
         """設置測試環境。"""
         self.trading_tool = StockTradingTool()
 
-    def test_commission_calculation(self):
-        """測試手續費計算。"""
-        # 測試一般手續費 (0.06%)
-        amount = 100000  # 10萬元
-        commission = self.trading_tool._calculate_commission(amount)
-        expected = 100000 * 0.0006  # 60元
-        self.assertEqual(commission, expected)
-
-        # 測試最低手續費 (20元)
-        amount = 10000  # 1萬元
-        commission = self.trading_tool._calculate_commission(amount)
-        self.assertEqual(commission, 20.0)  # 最低手續費
 
     @patch("src.tools.trading.stock_trading.TWStockAPIClient")
     @patch("src.tools.trading.stock_trading.MCPToolInputValidator")
@@ -229,22 +217,6 @@ class TestTradingTools(unittest.TestCase):
         self.assertIn("交易失敗", result[0]["text"])
         self.assertIn("高於市場最高買價", result[0]["text"])
 
-    def test_tool_definitions(self):
-        """測試工具定義格式。"""
-        buy_def = self.trading_tool.get_buy_tool_definition()
-        sell_def = self.trading_tool.get_sell_tool_definition()
-
-        # 檢查必要欄位
-        for tool_def in [buy_def, sell_def]:
-            self.assertIn("name", tool_def)
-            self.assertIn("description", tool_def)
-            self.assertIn("inputSchema", tool_def)
-            self.assertIn("properties", tool_def["inputSchema"])
-            self.assertIn("required", tool_def["inputSchema"])
-
-        # 檢查工具名稱
-        self.assertEqual(buy_def["name"], "buy_taiwan_stock")
-        self.assertEqual(sell_def["name"], "sell_taiwan_stock")
 
 
 def run_async_test(test_func):

@@ -4,6 +4,7 @@ MCP 服務器整合測試。
 測試 MCP 服務器是否正確註冊和運行交易工具。
 """
 
+import pytest
 import unittest
 from unittest.mock import patch
 
@@ -18,10 +19,11 @@ class TestServerIntegration(unittest.TestCase):
         # No need to instantiate MCPServer, just ensure mcp is available
         pass
 
-    def test_trading_tools_registered(self):
+    @pytest.mark.asyncio
+    async def test_trading_tools_registered(self):
         """測試交易工具是否正確註冊。"""
         # 取得所有工具定義
-        all_tool_defs = [tool for tool in mcp.get_tools()]
+        all_tool_defs = [tool for tool in await mcp.get_tools()]
 
         # 過濾出交易工具
         trading_defs = [

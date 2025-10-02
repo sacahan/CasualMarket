@@ -114,9 +114,9 @@ class TestFinancialIntegration:
         """Test that cache service is properly integrated."""
         assert cache_service is not None
         # Test that cache service has required methods
-        assert hasattr(cache_service, "get")
-        assert hasattr(cache_service, "set")
-        assert hasattr(cache_service, "can_make_request")
+        assert hasattr(cache_service, "get_cached_or_wait")
+        assert hasattr(cache_service, "record_successful_request")
+        assert hasattr(cache_service, "invalidate_symbol_cache")
 
     @pytest.mark.asyncio
     async def test_error_handling_invalid_symbol(self, company_profile_tool):

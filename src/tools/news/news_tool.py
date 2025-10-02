@@ -4,6 +4,7 @@
 
 from typing import Any
 
+from ...api.openapi_client import OpenAPIClient
 from ..base import ToolBase
 
 
@@ -16,6 +17,7 @@ class NewsTool(ToolBase):
 
     def __init__(self):
         super().__init__("news")
+        self.openapi_client = OpenAPIClient()
 
     async def execute(
         self, symbol: str = "", category: str = "market", **kwargs
@@ -33,10 +35,36 @@ class NewsTool(ToolBase):
         try:
             self.logger.info(f"查詢新聞資訊: symbol={symbol}, category={category}")
 
-            # TODO: 實作新聞資料 API 呼叫
-            # 這裡需要整合新聞資料來源 API
+            # 從 TWSE OpenAPI 取得新聞列表
+            news_data = await self.openapi_client.get_data("/news/newsList")
 
-            return self._error_response("新聞功能尚未實作，敬請期待")
+            if not news_data:
+                return self._error_response("無法取得新聞資料")
+
+            # 如果有指定股票代碼，過濾相關新聞
+            if symbol:
+                filtered_news = []
+                for news_item in news_data:
+                    if symbol in str(news_item.get("title", "")) or symbol in str(
+                        news_item.get("content", "")
+                    ):
+                        filtered_news.append(news_item)
+                news_data = filtered_news
+
+            # 限制返回數量
+            max_items = kwargs.get("limit", 20)
+            if len(news_data) > max_items:
+                news_data = news_data[:max_items]
+
+            return {
+                "status": "success",
+                "data": {
+                    "symbol": symbol,
+                    "category": category,
+                    "news_count": len(news_data),
+                    "news_items": news_data,
+                },
+            }
 
         except Exception as e:
             self.logger.error(f"查詢新聞資訊失敗: {e}")

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from datetime import datetime
 from typing import Any
 
@@ -39,9 +40,12 @@ class TWStockAPIClient:
     回應解析和錯誤處理。
     """
 
-    def __init__(self):
+    def __init__(self, enable_cache: bool = True, enable_rate_limit: bool = True):
         """初始化 API 客戶端。"""
         logger.debug("初始化 TWStockAPIClient")
+
+        self.enable_cache = enable_cache
+        self.enable_rate_limit = enable_rate_limit
 
         # 從環境變數讀取配置，如果沒有則使用默認值
         self.base_url = os.getenv(
@@ -68,9 +72,58 @@ class TWStockAPIClient:
 
         logger.debug("TWStockAPIClient 初始化完成")
 
-    @with_cache("quote", enable_rate_limit=True)
+from .decorators import (
+    _get_cache_service,
+    _parse_cached_response,
+    _prepare_for_cache,
+)
+
+# 設置日誌
+logger = get_logger(__name__)
+
+
+class TWStockAPIClient:
+    """
+    台灣證券交易所 API 客戶端。
+
+    負責處理與證交所 API 的通信，包含請求建構、發送、
+    回應解析和錯誤處理。
+    """
+
+    def __init__(self, enable_cache: bool = True, enable_rate_limit: bool = True):
+        """初始化 API 客戶端。"""
+        logger.debug("初始化 TWStockAPIClient")
+
+        self.enable_cache = enable_cache
+        self.enable_rate_limit = enable_rate_limit
+
+        # 從環境變數讀取配置，如果沒有則使用默認值
+        self.base_url = os.getenv(
+            "MARKET_MCP_TWSE_API_URL",
+            "https://mis.twse.com.tw/stock/api/getStockInfo.jsp",
+        )
+        self.timeout = float(os.getenv("MARKET_MCP_API_TIMEOUT", "5.0"))
+        self.max_retries = int(os.getenv("MARKET_MCP_API_RETRIES", "3"))
+        self.parser = create_parser()
+
+        logger.debug(
+            f"API 配置 - URL: {self.base_url}, timeout: {self.timeout}s, max_retries: {self.max_retries}"
+        )
+
+        # 設定 HTTP 客戶端標頭
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Referer": "https://mis.twse.com.tw/stock/fibest.jsp",
+        }
+
+        logger.debug("TWStockAPIClient 初始化完成")
+
     async def get_stock_quote(
-        self, symbol: str, market: str | None = None
+        self, symbol: str, market: str | None = None, force_refresh: bool = False
     ) -> TWStockResponse:
         """
         取得單一股票即時報價。
@@ -78,6 +131,7 @@ class TWStockAPIClient:
         Args:
             symbol: 股票代號或公司名稱
             market: 市場類型 ('tse' 或 'otc')，如果未指定會自動判斷
+            force_refresh: 是否強制刷新快取
 
         Returns:
             TWStockResponse: 股票報價資料
@@ -86,6 +140,33 @@ class TWStockAPIClient:
             ValidationError: 股票代號格式不正確或找不到該股票
             APIError: API 請求失敗
         """
+        cache_key_prefix = "quote"
+        start_time = time.time()
+
+        if self.enable_cache:
+            cache_service = _get_cache_service()
+            if force_refresh:
+                await cache_service.invalidate_symbol_cache(symbol, cache_key_prefix)
+
+            if self.enable_rate_limit:
+                cached_data, _, message = await cache_service.get_cached_or_wait(
+                    symbol, cache_key_prefix
+                )
+
+                if cached_data:
+                    response_time = (time.time() - start_time) * 1000
+                    await cache_service.record_cached_response(symbol, cache_key_prefix)
+                    return _parse_cached_response(cached_data["data"])
+
+                if "cache_miss_can_make_request" not in message:
+                    raise APIError(f"股票 {symbol} 受流量限制: {message}")
+            else:
+                cached_data = await cache_service.cache_manager.get_cached_data(
+                    symbol, cache_key_prefix
+                )
+                if cached_data and not force_refresh:
+                    return _parse_cached_response(cached_data["data"])
+
         logger.info(f"開始查詢股票報價: {symbol}")
 
         # 嘗試使用資料庫解析股票代碼或公司名稱
@@ -145,6 +226,16 @@ class TWStockAPIClient:
             logger.info(
                 f"成功取得股票報價: {resolved_symbol} ({stock_data.company_name}) = ${stock_data.current_price}"
             )
+
+            if self.enable_cache:
+                cache_service = _get_cache_service()
+                result_dict = _prepare_for_cache(stock_data)
+                if result_dict:
+                    response_time = (time.time() - start_time) * 1000
+                    await cache_service.record_successful_request(
+                        symbol, result_dict, response_time, cache_key_prefix
+                    )
+
             return stock_data
 
         except (ValidationError, APIError):
@@ -369,19 +460,24 @@ class TWStockAPIClient:
         self.close()
 
 
-def create_client() -> TWStockAPIClient:
+def create_client(
+    enable_cache: bool = True,
+    enable_rate_limit: bool = True,
+) -> TWStockAPIClient:
     """
     建立台灣證交所 API 客戶端實例。
 
-    Returns:
-        TWStockAPIClient: 帶有快取和速率限制功能的 API 客戶端實例
+    Args:
+        enable_cache: 是否啟用快取
+        enable_rate_limit: 是否啟用速率限制
 
-    Examples:
-        >>> client = create_client()
-        >>> quote = await client.get_stock_quote("2330")
+    Returns:
+        TWStockAPIClient: 帶有或不帶快取和速率限制功能的 API 客戶端實例
     """
-    logger.debug("建立 TWStockAPIClient 實例")
-    return TWStockAPIClient()
+    logger.debug(
+        f"建立 TWStockAPIClient 實例 (快取: {enable_cache}, 速率限制: {enable_rate_limit})"
+    )
+    return TWStockAPIClient(enable_cache=enable_cache, enable_rate_limit=enable_rate_limit)
 
 
 # 增加 main 函式以便直接執行測試

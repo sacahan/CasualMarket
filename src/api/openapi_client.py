@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 
 from ..utils.logging import get_logger
-from .decorators import with_args_cache, with_cache
+from .decorators import with_cache
 
 logger = get_logger(__name__)
 
@@ -73,7 +73,7 @@ class OpenAPIClient:
             logger.error(f"請求失敗: {url} - {type(e).__name__}: {e}")
             raise Exception(f"取得資料失敗: {e}") from e
 
-    @with_args_cache("company_data", enable_rate_limit=False, include_args=[0, 1])
+    @with_cache(enable_rate_limit=False, cache_key_prefix="company_data")
     async def get_company_data(
         self, endpoint: str, symbol: str
     ) -> dict[str, Any] | None:

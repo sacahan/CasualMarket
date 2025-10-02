@@ -5,6 +5,7 @@
 """
 
 import asyncio
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,8 +19,8 @@ class TestTWStockAPIClient:
 
     @pytest.fixture
     def client(self):
-        """建立測試用 API 客戶端。"""
-        return create_client()
+        """建立測試用 API 客戶端 (無快取和速率限制)。"""
+        return create_client(enable_cache=False, enable_rate_limit=False)
 
     @pytest.fixture
     def mock_api_response(self):
@@ -133,14 +134,40 @@ class TestTWStockAPIClient:
             mock_client.get.return_value = mock_response
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            # 執行測試
-            symbols = ["2330", "2317", "2454"]
-            results = await client.get_multiple_quotes(symbols)
+            # Mock get_stock_quote to return a successful response for each symbol
+            async def mock_get_stock_quote(symbol, market=None):
+                # Create a dummy TWStockResponse for the mocked symbol
+                return TWStockResponse(
+                    symbol=symbol,
+                    company_name=f"公司名稱 {symbol}",
+                    current_price=100.0,
+                    change=0.0,
+                    change_percent=0.0,
+                    volume=1000,
+                    open_price=100.0,
+                    high_price=100.0,
+                    low_price=100.0,
+                    previous_close=100.0,
+                    upper_limit=110.0,
+                    lower_limit=90.0,
+                    bid_prices=[99.5],
+                    bid_volumes=[100],
+                    ask_prices=[100.5],
+                    ask_volumes=[100],
+                    update_time=datetime.now(),
+                    last_trade_time="13:00:00",
+                )
 
-            # 驗證結果
-            assert len(results) == len(symbols)
-            for result in results:
-                assert isinstance(result, TWStockResponse)
+            with patch.object(client, 'get_stock_quote', side_effect=mock_get_stock_quote):
+                # 執行測試
+                symbols = ["2330", "2317", "2454"]
+                results = await client.get_multiple_quotes(symbols)
+
+                # 驗證結果
+                assert len(results) == len(symbols)
+                for result in results:
+                    assert isinstance(result, TWStockResponse)
+                    assert result.symbol in symbols
 
     @pytest.mark.asyncio
     async def test_check_api_health_success(self, client, mock_api_response):
@@ -164,14 +191,7 @@ class TestTWStockAPIClient:
     @pytest.mark.asyncio
     async def test_check_api_health_failure(self, client):
         """測試 API 健康檢查失敗。"""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            # 設定 mock HTTP 錯誤
-            import httpx
-
-            mock_client = AsyncMock()
-            mock_client.get.side_effect = httpx.ConnectError("Connection failed")
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
+        with patch.object(client, 'get_stock_quote', side_effect=APIError("Mocked API failure")):
             # 執行測試
             is_healthy = await client.check_api_health()
 
@@ -205,7 +225,7 @@ class TestTWStockAPIClient:
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
             # 使用異步內容管理器
-            async with create_client() as client:
+            async with create_client(enable_cache=False, enable_rate_limit=False) as client:
                 result = await client.get_stock_quote("2330")
                 assert isinstance(result, TWStockResponse)
 
