@@ -5,11 +5,11 @@ This module provides structured logging using loguru with configuration
 support for different environments and output formats.
 """
 
-import sys
-from loguru import logger
-
 # 移除 config 依賴，直接使用環境變數
 import os
+import sys
+
+from loguru import logger
 
 
 def setup_logging(
@@ -59,9 +59,9 @@ def setup_logging(
             diagnose=True,
         )
 
-    logger.info(f"Logging initialized - Level: {log_level}")
+    logger.info(f"日誌系統已初始化 - 層級: {log_level}")
     if log_path:
-        logger.info(f"Log file: {log_path}")
+        logger.info(f"日誌檔案: {log_path}")
 
 
 def get_logger(name: str):

@@ -3,12 +3,11 @@ Multi-layered API rate limiting mechanism for protecting Taiwan Stock Exchange A
 Implements per-stock, global, and per-second rate limiting.
 """
 
-import asyncio
+import logging
 import time
 from collections import defaultdict, deque
 from threading import Lock
 from typing import Any
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +142,7 @@ class RateLimiter:
             self.per_second_requests.append(current_time)
             self._clean_old_requests(self.per_second_requests, 1.0)
 
-        logger.debug(f"Recorded API request for symbol: {symbol}")
+        logger.debug(f"已記錄股票 {symbol} 的 API 請求")
 
     def get_stats(self) -> dict[str, Any]:
         """Get current rate limiter statistics."""
@@ -180,4 +179,4 @@ class RateLimiter:
         with self.per_second_lock:
             self.per_second_requests.clear()
 
-        logger.info("Rate limiter counters have been reset")
+        logger.info("流量限制計數器已重置")

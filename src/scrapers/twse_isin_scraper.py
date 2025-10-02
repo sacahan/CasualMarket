@@ -66,7 +66,7 @@ class TWSeISINScraper:
         Raises:
             requests.RequestException: If request fails
         """
-        self.logger.info(f"Fetching ISIN data from {self.TWSE_ISIN_URL}")
+        self.logger.info(f"從 {self.TWSE_ISIN_URL} 取得 ISIN 資料")
 
         try:
             response = self.session.get(self.TWSE_ISIN_URL, timeout=30)
@@ -75,13 +75,11 @@ class TWSeISINScraper:
             # The content is in Big5 encoding
             response.encoding = "big5"
 
-            self.logger.info(
-                f"Successfully fetched ISIN data ({len(response.text)} characters)"
-            )
+            self.logger.info(f"成功取得 ISIN 資料 ({len(response.text)} 字元)")
             return response.text
 
         except requests.RequestException as e:
-            self.logger.error(f"Failed to fetch ISIN data: {e}")
+            self.logger.error(f"取得 ISIN 資料失敗: {e}")
             raise
 
     def parse_isin_data(self, html_content: str) -> list[dict[str, str]]:
@@ -94,7 +92,7 @@ class TWSeISINScraper:
         Returns:
             List of dictionaries containing stock information (regular stocks only)
         """
-        self.logger.info("Parsing ISIN data from HTML content")
+        self.logger.info("解析 HTML 內容中的 ISIN 資料")
 
         soup = BeautifulSoup(html_content, "html.parser")
 
@@ -108,7 +106,7 @@ class TWSeISINScraper:
                 break
 
         if not data_table:
-            self.logger.error("Could not find data table in HTML content")
+            self.logger.error("在 HTML 內容中找不到資料表格")
             return []
 
         securities = []
@@ -126,7 +124,7 @@ class TWSeISINScraper:
                 # This is a section header
                 header_text = cells[0].get_text(strip=True)
                 current_section = header_text
-                self.logger.debug(f"Found section header: {header_text}")
+                self.logger.debug(f"找到區塊標題: {header_text}")
                 continue
 
             try:
@@ -178,12 +176,10 @@ class TWSeISINScraper:
                 securities.append(security_info)
 
             except Exception as e:
-                self.logger.warning(f"Failed to parse row: {e}")
+                self.logger.warning(f"解析資料列失敗: {e}")
                 continue
 
-        self.logger.info(
-            f"Successfully parsed {len(securities)} securities (stocks and ETFs)"
-        )
+        self.logger.info(f"成功解析 {len(securities)} 項證券 (股票和ETF)")
         return securities
 
     def _is_valid_security(
@@ -322,7 +318,7 @@ class TWSeISINScraper:
 
     def init_database(self) -> None:
         """Initialize SQLite database with required tables."""
-        self.logger.info(f"Initializing database at {self.db_path}")
+        self.logger.info(f"在 {self.db_path} 初始化資料庫")
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -352,7 +348,7 @@ class TWSeISINScraper:
                 cursor.execute(
                     "ALTER TABLE securities ADD COLUMN security_type TEXT DEFAULT 'stock'"
                 )
-                self.logger.info("Added security_type column to existing table")
+                self.logger.info("已新增 security_type 欄位至現有表格")
             except sqlite3.OperationalError:
                 # Column already exists
                 pass
@@ -381,7 +377,7 @@ class TWSeISINScraper:
 
             conn.commit()
 
-        self.logger.info("Database initialization completed")
+        self.logger.info("資料庫初始化完成")
 
     def save_to_database(self, securities: list[dict[str, str]]) -> int:
         """
@@ -394,10 +390,10 @@ class TWSeISINScraper:
             Number of records inserted/updated
         """
         if not securities:
-            self.logger.warning("No securities data to save")
+            self.logger.warning("沒有證券資料可儲存")
             return 0
 
-        self.logger.info(f"Saving {len(securities)} securities to database")
+        self.logger.info(f"儲存 {len(securities)} 項證券資料至資料庫")
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -549,7 +545,7 @@ class TWSeISINScraper:
         Returns:
             Number of records processed
         """
-        self.logger.info("Starting TWSE ISIN scraping workflow")
+        self.logger.info("開始 TWSE ISIN 爬取流程")
 
         try:
             # Initialize database
@@ -564,11 +560,9 @@ class TWSeISINScraper:
             # Save to database
             processed_count = self.save_to_database(securities)
 
-            self.logger.info(
-                f"TWSE ISIN scraping completed successfully: {processed_count} records processed"
-            )
+            self.logger.info(f"TWSE ISIN 爬取成功完成: 處理了 {processed_count} 筆記錄")
             return processed_count
 
         except Exception as e:
-            self.logger.error(f"TWSE ISIN scraping failed: {e}")
+            self.logger.error(f"TWSE ISIN 爬取失敗: {e}")
             raise

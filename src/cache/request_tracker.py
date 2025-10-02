@@ -3,13 +3,12 @@ API usage statistics tracking and monitoring for Taiwan Stock Exchange API.
 Provides detailed metrics for rate limiting and performance monitoring.
 """
 
-import time
 import logging
+import time
 from collections import defaultdict, deque
+from dataclasses import dataclass, field
 from threading import RLock
 from typing import Any
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +110,7 @@ class RequestTracker:
             # Record timestamp
             self.request_timestamps.append(current_time)
 
-        logger.debug(f"Started tracking request {request_id}")
+        logger.debug(f"開始追蹤請求 {request_id}")
         return request_id
 
     async def record_request_complete(
@@ -204,7 +203,7 @@ class RequestTracker:
             request_type,
         )
 
-        logger.debug(f"Recorded cached response for {symbol}")
+        logger.debug(f"已記錄股票 {symbol} 的快取回應")
 
     def get_global_stats(self) -> dict[str, Any]:
         """Get global API usage statistics."""
@@ -349,4 +348,4 @@ class RequestTracker:
             self.response_times.clear()
             self.rate_limit_events.clear()
 
-        logger.info("All request tracking statistics have been reset")
+        logger.info("所有請求追蹤統計資料已重置")

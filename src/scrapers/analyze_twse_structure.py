@@ -11,8 +11,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from market_mcp.scrapers.twse_isin_scraper import TWSeISINScraper
-from market_mcp.utils.logging import setup_logging
+from market_mcp.scrapers.twse_isin_scraper import TWSeISINScraper  # noqa: E402
+from market_mcp.utils.logging import setup_logging  # noqa: E402
 
 
 def analyze_twse_structure():
@@ -35,7 +35,7 @@ def analyze_twse_structure():
     for i, section in enumerate(sections[:20]):  # Show first 20
         cleaned = section.strip()
         if cleaned:
-            print(f"  {i+1}: {cleaned}")
+            print(f"  {i + 1}: {cleaned}")
 
     # Look for ETF-like entries
     print("\n🎯 Looking for potential ETF entries...")
@@ -92,7 +92,7 @@ def analyze_twse_structure():
                     )
 
                     print(
-                        f"  Row {j+1}: {first_cell[:30]:<30} CFI: {cfi_code:<10} ETF-like: {is_etf_like}"
+                        f"  Row {j + 1}: {first_cell[:30]:<30} CFI: {cfi_code:<10} ETF-like: {is_etf_like}"
                     )
 
             # Look specifically for 00xx codes (likely ETFs)

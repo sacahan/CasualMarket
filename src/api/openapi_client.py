@@ -22,7 +22,7 @@ class OpenAPIClient:
     """
 
     BASE_URL = "https://openapi.twse.com.tw/v1"
-    USER_AGENT = "CasualTrader-MCP/2.0"
+    USER_AGENT = "CasualMarket-MCP/2.0"
 
     def __init__(self):
         """初始化 OpenAPI 客戶端。"""

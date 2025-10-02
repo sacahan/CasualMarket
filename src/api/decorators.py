@@ -26,7 +26,7 @@ def _get_cache_service() -> RateLimitedCacheService:
     if _cache_service is None:
         _config_manager = ConfigManager()
         _cache_service = RateLimitedCacheService(_config_manager)
-        logger.info("Initialized global cache service")
+        logger.info("已初始化全域快取服務")
     return _cache_service
 
 
@@ -78,7 +78,7 @@ def with_cache_and_rate_limit(
                             return _parse_cached_response(cached_data["data"])
 
                         if "cache_miss_can_make_request" not in message:
-                            raise APIError(f"Rate limited for {symbol}: {message}")
+                            raise APIError(f"股票 {symbol} 受流量限制: {message}")
 
                     else:
                         cached_data = await cache_service.cache_manager.get_cached_data(
@@ -105,7 +105,9 @@ def with_cache_and_rate_limit(
                     await cache_service.record_failed_request(
                         symbol, response_time, cache_key_prefix
                     )
-                raise APIError(f"{func.__name__} failed for {symbol}: {str(e)}") from e
+                raise APIError(
+                    f"股票 {symbol} 的 {func.__name__} 操作失敗: {str(e)}"
+                ) from e
 
         return wrapper
 

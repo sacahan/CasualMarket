@@ -1,6 +1,6 @@
 """
-Integrated rate limiting and caching service for Taiwan Stock Exchange API.
-Combines all cache components into a unified high-level interface.
+台灣證券交易所 API 的整合式流量限制與快取服務。
+將所有快取元件整合為統一的高階介面。
 """
 
 import logging
@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 class RateLimitedCacheService:
     """
-    High-level service that integrates rate limiting, caching, and statistics tracking.
-    This is the main interface for protected API access with intelligent caching.
+    整合流量限制、快取與統計追蹤的高階服務。
+    提供受保護 API 存取與智慧型快取的主要介面。
     """
 
     def __init__(self, config_manager: ConfigManager | None = None):
@@ -51,8 +51,8 @@ class RateLimitedCacheService:
         self, symbol: str, request_type: str = "quote"
     ) -> tuple[bool, str, float]:
         """
-        Check if a request can be made for the given symbol.
-        Returns (allowed, reason, wait_time_seconds).
+        檢查指定股票是否可發送請求。
+        回傳 (允許, 原因, 等待秒數)。
         """
         if not self.config.is_rate_limiting_enabled():
             return True, "rate_limiting_disabled", 0.0
@@ -63,14 +63,14 @@ class RateLimitedCacheService:
         self, symbol: str, request_type: str = "quote"
     ) -> tuple[dict | None, bool, str]:
         """
-        Smart cache retrieval with rate limiting awareness.
-        Returns (data, is_from_cache, message).
+        智慧型快取取得，並考量流量限制。
+        回傳 (資料, 是否來自快取, 訊息)。
 
-        Logic:
-        1. Check cache first
-        2. If cache miss, check rate limits
-        3. Return cached data if rate limited
-        4. Return None if no cached data and rate limited
+        邏輯：
+        1. 先檢查快取
+        2. 若快取未命中，檢查流量限制
+        3. 若流量受限則回傳快取資料
+        4. 若無快取且流量受限則回傳 None
         """
         # Always try cache first
         cached_data = None
@@ -108,8 +108,8 @@ class RateLimitedCacheService:
         request_type: str = "quote",
     ) -> bool:
         """
-        Record a successful API request and cache the response.
-        Returns True if everything was recorded successfully.
+        記錄成功的 API 請求並快取回應。
+        全部記錄成功則回傳 True。
         """
         try:
             # Record the request with rate limiter
@@ -138,13 +138,15 @@ class RateLimitedCacheService:
             return cache_success
 
         except Exception as e:
-            logger.error(f"Error recording successful request for {symbol}: {e}")
+            logger.error(f"記錄股票 {symbol} 成功請求時發生錯誤: {e}")
             return False
 
     async def record_failed_request(
         self, symbol: str, response_time_ms: float, request_type: str = "quote"
     ) -> None:
-        """Record a failed API request for statistics."""
+        """
+        記錄失敗的 API 請求以供統計。
+        """
         try:
             request_id = await self.request_tracker.record_request_start(
                 symbol, request_type
@@ -158,12 +160,14 @@ class RateLimitedCacheService:
             )
 
         except Exception as e:
-            logger.error(f"Error recording failed request for {symbol}: {e}")
+            logger.error(f"記錄股票 {symbol} 失敗請求時發生錯誤: {e}")
 
     async def record_cached_response(
         self, symbol: str, request_type: str = "quote"
     ) -> None:
-        """Record when a cached response was returned."""
+        """
+        記錄回傳快取資料的事件。
+        """
         try:
             request_id = await self.request_tracker.record_request_start(
                 symbol, request_type
@@ -177,13 +181,15 @@ class RateLimitedCacheService:
                 request_type,
             )
 
-            logger.debug(f"Recorded cached response for {symbol}")
+            logger.debug(f"已記錄股票 {symbol} 的快取回應")
 
         except Exception as e:
-            logger.error(f"Error recording cached response for {symbol}: {e}")
+            logger.error(f"記錄股票 {symbol} 快取回應時發生錯誤: {e}")
 
     def get_comprehensive_stats(self) -> dict[str, Any]:
-        """Get comprehensive statistics from all components."""
+        """
+        取得所有元件的綜合統計資料。
+        """
         try:
             return {
                 "service_status": {
@@ -208,11 +214,13 @@ class RateLimitedCacheService:
                 },
             }
         except Exception as e:
-            logger.error(f"Error getting comprehensive stats: {e}")
+            logger.error(f"取得綜合統計資料時發生錯誤: {e}")
             return {"error": str(e)}
 
     async def health_check(self) -> dict[str, Any]:
-        """Perform a comprehensive health check of all components."""
+        """
+        執行所有元件的綜合健康檢查。
+        """
         health_status = {
             "overall_healthy": True,
             "timestamp": time.time(),
@@ -318,44 +326,58 @@ class RateLimitedCacheService:
         except Exception as e:
             health_status["overall_healthy"] = False
             health_status["issues"].append(f"Health check error: {str(e)}")
-            logger.error(f"Error during health check: {e}")
+            logger.error(f"健康檢查時發生錯誤: {e}")
 
         return health_status
 
     async def invalidate_symbol_cache(
         self, symbol: str, request_type: str = "quote"
     ) -> bool:
-        """Manually invalidate cache for a specific symbol."""
+        """
+        手動使指定股票的快取失效。
+        """
         if self.config.is_caching_enabled():
             return await self.cache_manager.invalidate(symbol, request_type)
         return True
 
     async def clear_all_cache(self) -> None:
-        """Clear all cached data."""
+        """
+        清除所有快取資料。
+        """
         if self.config.is_caching_enabled():
             await self.cache_manager.clear_all()
 
     async def reset_rate_limits(self) -> None:
-        """Reset all rate limiting counters."""
+        """
+        重設所有流量限制計數器。
+        """
         self.rate_limiter.reset_limits()
 
     async def reset_all_stats(self) -> None:
-        """Reset all statistics and clear cache."""
+        """
+        重設所有統計資料並清除快取。
+        """
         await self.clear_all_cache()
         self.rate_limiter.reset_limits()
         await self.request_tracker.reset_stats()
-        logger.info("All statistics and cache have been reset")
+        logger.info("所有統計資料和快取已重置")
 
     def enable_service(self) -> None:
-        """Enable the rate limiting and caching service."""
+        """
+        啟用流量限制與快取服務。
+        """
         self._is_enabled = True
-        logger.info("Rate limited cache service enabled")
+        logger.info("流量限制快取服務已啟用")
 
     def disable_service(self) -> None:
-        """Disable the rate limiting and caching service."""
+        """
+        停用流量限制與快取服務。
+        """
         self._is_enabled = False
-        logger.info("Rate limited cache service disabled")
+        logger.info("流量限制快取服務已停用")
 
     def is_enabled(self) -> bool:
-        """Check if the service is enabled."""
+        """
+        檢查服務是否已啟用。
+        """
         return self._is_enabled

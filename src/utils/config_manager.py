@@ -58,7 +58,7 @@ class ConfigManager:
     def load_config(self) -> bool:
         """Load configuration from file. Returns True if successful."""
         if not self.config_file or not self.config_file.exists():
-            logger.info("No configuration file found, using defaults")
+            logger.info("找不到設定檔案，使用預設值")
             return False
 
         try:
@@ -69,16 +69,16 @@ class ConfigManager:
                 # Merge with defaults (file config takes precedence)
                 self._merge_config(self._config, file_config)
 
-                logger.info(f"Configuration loaded from {self.config_file}")
+                logger.info(f"從 {self.config_file} 載入設定檔")
                 return True
         except Exception as e:
-            logger.error(f"Failed to load configuration from {self.config_file}: {e}")
+            logger.error(f"載入設定檔失敗 {self.config_file}: {e}")
             return False
 
     def save_config(self) -> bool:
         """Save current configuration to file. Returns True if successful."""
         if not self.config_file:
-            logger.warning("No configuration file path specified")
+            logger.warning("未指定設定檔路徑")
             return False
 
         try:
@@ -89,10 +89,10 @@ class ConfigManager:
                 with open(self.config_file, "w", encoding="utf-8") as f:
                     json.dump(self._config, f, indent=2, ensure_ascii=False)
 
-                logger.info(f"Configuration saved to {self.config_file}")
+                logger.info(f"設定檔已儲存至 {self.config_file}")
                 return True
         except Exception as e:
-            logger.error(f"Failed to save configuration to {self.config_file}: {e}")
+            logger.error(f"儲存設定檔失敗 {self.config_file}: {e}")
             return False
 
     def _merge_config(self, target: dict, source: dict) -> None:
@@ -121,9 +121,7 @@ class ConfigManager:
                     value = value[key]
                 return value
             except (KeyError, TypeError):
-                logger.debug(
-                    f"Configuration key '{key_path}' not found, returning default"
-                )
+                logger.debug(f"找不到設定鍵值 '{key_path}'，回傳預設值")
                 return default
 
     def set(self, key_path: str, value: Any, save_to_file: bool = False) -> bool:
@@ -145,14 +143,14 @@ class ConfigManager:
                 # Set the final key
                 config[keys[-1]] = value
 
-                logger.info(f"Configuration updated: {key_path} = {value}")
+                logger.info(f"設定已更新: {key_path} = {value}")
 
                 if save_to_file:
                     return self.save_config()
 
                 return True
             except Exception as e:
-                logger.error(f"Failed to set configuration {key_path}: {e}")
+                logger.error(f"設定配置失敗 {key_path}: {e}")
                 return False
 
     def get_rate_limiting_config(self) -> dict[str, Any]:
@@ -186,26 +184,26 @@ class ConfigManager:
         try:
             with self.lock:
                 if per_stock_interval is not None:
-                    self._config["rate_limiting"]["per_stock_interval_seconds"] = (
-                        per_stock_interval
-                    )
+                    self._config["rate_limiting"][
+                        "per_stock_interval_seconds"
+                    ] = per_stock_interval
 
                 if global_limit_per_minute is not None:
-                    self._config["rate_limiting"]["global_limit_per_minute"] = (
-                        global_limit_per_minute
-                    )
+                    self._config["rate_limiting"][
+                        "global_limit_per_minute"
+                    ] = global_limit_per_minute
 
                 if per_second_limit is not None:
                     self._config["rate_limiting"]["per_second_limit"] = per_second_limit
 
-                logger.info("Rate limiting configuration updated")
+                logger.info("流量限制設定已更新")
 
                 if save_to_file:
                     return self.save_config()
 
                 return True
         except Exception as e:
-            logger.error(f"Failed to update rate limiting config: {e}")
+            logger.error(f"更新流量限制設定失敗: {e}")
             return False
 
     def update_cache_settings(
@@ -227,14 +225,14 @@ class ConfigManager:
                 if max_memory_mb is not None:
                     self._config["caching"]["max_memory_mb"] = max_memory_mb
 
-                logger.info("Cache configuration updated")
+                logger.info("快取設定已更新")
 
                 if save_to_file:
                     return self.save_config()
 
                 return True
         except Exception as e:
-            logger.error(f"Failed to update cache config: {e}")
+            logger.error(f"更新快取設定失敗: {e}")
             return False
 
     def is_rate_limiting_enabled(self) -> bool:
@@ -289,12 +287,12 @@ class ConfigManager:
                     },
                 }
 
-                logger.info("Configuration reset to defaults")
+                logger.info("設定已重置為預設值")
 
                 if save_to_file:
                     return self.save_config()
 
                 return True
         except Exception as e:
-            logger.error(f"Failed to reset configuration: {e}")
+            logger.error(f"重置設定失敗: {e}")
             return False

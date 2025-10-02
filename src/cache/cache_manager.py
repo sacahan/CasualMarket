@@ -1,6 +1,6 @@
 """
-High-performance cache manager with TTL (Time To Live) strategy.
-Implements intelligent caching for Taiwan Stock Exchange API responses.
+高效能快取管理器，採用 TTL（存活時間）策略。
+實作台灣證券交易所 API 回應的智慧型快取。
 """
 
 import logging
@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 class CacheManager:
     """
-    TTL-based cache manager with memory usage control.
-    Target: 80% cache hit rate, <200MB memory usage.
+    基於 TTL 的快取管理器，具備記憶體用量控管。
+    目標：快取命中率 80%，記憶體用量低於 200MB。
     """
 
     def __init__(
@@ -40,11 +40,15 @@ class CacheManager:
         self.stats_lock = RLock()
 
     def _generate_cache_key(self, symbol: str, request_type: str = "quote") -> str:
-        """Generate a unique cache key for the request."""
+        """
+        產生此請求的唯一快取鍵。
+        """
         return f"{request_type}:{symbol.upper()}"
 
     def _estimate_memory_usage(self) -> float:
-        """Estimate current memory usage in MB."""
+        """
+        估算目前記憶體用量（MB）。
+        """
         try:
             # Get the size of the cache object
             cache_size = sys.getsizeof(self.cache)
@@ -59,15 +63,15 @@ class CacheManager:
             total_mb = (cache_size + data_size) / (1024 * 1024)
             return total_mb
         except Exception as e:
-            logger.warning(f"Could not estimate memory usage: {e}")
+            logger.warning(f"無法估算記憶體使用量: {e}")
             return 0.0
 
     async def get_cached_data(
         self, symbol: str, request_type: str = "quote"
     ) -> dict | None:
         """
-        Retrieve cached data for a stock symbol.
-        Returns None if not found or expired.
+        取得指定股票代號的快取資料。
+        若未找到或已過期則回傳 None。
         """
         cache_key = self._generate_cache_key(symbol, request_type)
 
@@ -77,15 +81,15 @@ class CacheManager:
                 if data is not None:
                     with self.stats_lock:
                         self.hit_count += 1
-                    logger.debug(f"Cache HIT for {cache_key}")
+                    logger.debug(f"快取命中: {cache_key}")
                     return data
                 else:
                     with self.stats_lock:
                         self.miss_count += 1
-                    logger.debug(f"Cache MISS for {cache_key}")
+                    logger.debug(f"快取未命中: {cache_key}")
                     return None
             except Exception as e:
-                logger.error(f"Error retrieving cached data for {cache_key}: {e}")
+                logger.error(f"取得快取資料時發生錯誤 {cache_key}: {e}")
                 with self.stats_lock:
                     self.miss_count += 1
                 return None
@@ -94,8 +98,8 @@ class CacheManager:
         self, symbol: str, data: dict, request_type: str = "quote"
     ) -> bool:
         """
-        Store data in cache with TTL.
-        Returns True if successfully cached, False otherwise.
+        將資料存入快取並設定 TTL。
+        快取成功回傳 True，否則回傳 False。
         """
         cache_key = self._generate_cache_key(symbol, request_type)
 
@@ -103,8 +107,8 @@ class CacheManager:
         current_memory = self._estimate_memory_usage()
         if current_memory > self.max_memory_mb:
             logger.warning(
-                f"Memory usage ({current_memory:.1f}MB) exceeds limit "
-                f"({self.max_memory_mb}MB). Not caching new data."
+                f"記憶體使用量 ({current_memory:.1f}MB) 超過限制 "
+                f"({self.max_memory_mb}MB)。不快取新資料。"
             )
             return False
 
@@ -120,29 +124,33 @@ class CacheManager:
                 }
 
                 self.cache[cache_key] = enriched_data
-                logger.debug(f"Cached data for {cache_key}")
+                logger.debug(f"已快取資料: {cache_key}")
                 return True
             except Exception as e:
-                logger.error(f"Error caching data for {cache_key}: {e}")
+                logger.error(f"快取資料時發生錯誤 {cache_key}: {e}")
                 return False
 
     async def invalidate(self, symbol: str, request_type: str = "quote") -> bool:
-        """Remove specific data from cache."""
+        """
+        移除指定資料的快取。
+        """
         cache_key = self._generate_cache_key(symbol, request_type)
 
         with self.cache_lock:
             try:
                 if cache_key in self.cache:
                     del self.cache[cache_key]
-                    logger.debug(f"Invalidated cache for {cache_key}")
+                    logger.debug(f"已失效快取: {cache_key}")
                     return True
                 return False
             except Exception as e:
-                logger.error(f"Error invalidating cache for {cache_key}: {e}")
+                logger.error(f"失效快取時發生錯誤 {cache_key}: {e}")
                 return False
 
     async def clear_all(self) -> None:
-        """Clear all cached data."""
+        """
+        清除所有快取資料。
+        """
         with self.cache_lock:
             self.cache.clear()
 
@@ -150,10 +158,12 @@ class CacheManager:
             self.hit_count = 0
             self.miss_count = 0
 
-        logger.info("Cache cleared completely")
+        logger.info("快取已完全清除")
 
     def get_cache_stats(self) -> dict[str, Any]:
-        """Get detailed cache statistics."""
+        """
+        取得快取詳細統計資訊。
+        """
         with self.stats_lock:
             total_requests = self.hit_count + self.miss_count
             hit_rate = (
@@ -178,35 +188,37 @@ class CacheManager:
 
     def is_cache_healthy(self) -> tuple[bool, list[str]]:
         """
-        Check if cache is performing within acceptable parameters.
-        Returns (is_healthy, list_of_issues)
+        檢查快取是否在可接受參數範圍內運作。
+        回傳 (是否健康, 問題列表)
         """
         issues = []
         stats = self.get_cache_stats()
 
         # Check hit rate (target: 80%+)
         if stats["total_requests"] > 10 and stats["hit_rate_percent"] < 80.0:
-            issues.append(f"Low hit rate: {stats['hit_rate_percent']}% (target: 80%+)")
+            issues.append(f"命中率偏低: {stats['hit_rate_percent']}% (目標: 80%+)")
 
         # Check memory usage
         if stats["memory_usage_mb"] > stats["memory_limit_mb"]:
             issues.append(
-                f"Memory usage exceeded: {stats['memory_usage_mb']}MB "
-                f"(limit: {stats['memory_limit_mb']}MB)"
+                f"記憶體使用量超標: {stats['memory_usage_mb']}MB "
+                f"(限制: {stats['memory_limit_mb']}MB)"
             )
 
         # Check cache utilization
         utilization = (stats["cache_entries"] / stats["max_entries"]) * 100
         if utilization > 95.0:
             issues.append(
-                f"Cache nearly full: {utilization:.1f}% "
+                f"快取即將滿載: {utilization:.1f}% "
                 f"({stats['cache_entries']}/{stats['max_entries']})"
             )
 
         return len(issues) == 0, issues
 
     async def get_all_cached_symbols(self) -> list[str]:
-        """Get list of all currently cached symbols."""
+        """
+        取得目前所有已快取的股票代號列表。
+        """
         symbols = set()
 
         with self.cache_lock:

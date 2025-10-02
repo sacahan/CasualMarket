@@ -30,13 +30,13 @@ def main() -> None:
     logger = get_logger(__name__)
 
     try:
-        logger.info("Starting Market MCP Server via main() (FastMCP 模式)")
+        logger.info("通過 main() 啟動 Market MCP Server (FastMCP 模式)")
         server_main()
     except KeyboardInterrupt:
-        logger.info("Received interrupt signal, shutting down...")
+        logger.info("收到中斷訊號，正在關閉伺服器...")
         sys.exit(0)
     except Exception as e:
-        logger.error(f"Server startup failed: {e}")
+        logger.error(f"伺服器啟動失敗: {e}")
         sys.exit(1)
 
 
