@@ -78,7 +78,7 @@ def test_tool_definitions():
     print("\n🛠️  測試工具定義...")
 
     try:
-        from market_mcp.tools import get_tool_definitions
+        from src.tools import get_tool_definitions
 
         tools = get_tool_definitions()
         print(f"✅ 找到 {len(tools)} 個工具")

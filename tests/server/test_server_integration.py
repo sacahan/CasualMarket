@@ -7,8 +7,8 @@ MCP 服務器整合測試。
 import unittest
 from unittest.mock import patch
 
-from market_mcp.server import MCPServer
-from market_mcp.tools.trading_tool import get_trading_tool_definitions
+from src.server import MCPServer
+from src.tools.trading_tool import get_trading_tool_definitions
 
 
 class TestServerIntegration(unittest.TestCase):

@@ -83,38 +83,38 @@ class RateLimiter:
 
     def can_request_per_second(self) -> tuple[bool, float]:
         """
-        Check per-second rate limit (2 requests per second).
-        Returns (can_request, wait_time_seconds)
+        檢查每秒的請求限制（每秒最多 2 次請求）。
+        返回 (can_request, wait_time_seconds)
         """
         with self.per_second_lock:
             current_time = time.time()
-            self._clean_old_requests(self.per_second_requests, 1.0)  # 1 second window
+            self._clean_old_requests(self.per_second_requests, 1.0)  # 1 秒的時間窗口
 
             if len(self.per_second_requests) < self.per_second_limit:
                 return True, 0.0
             else:
-                # Calculate wait time until oldest request expires
+                # 計算直到最舊請求過期的等待時間
                 oldest_request = self.per_second_requests[0]
                 wait_time = 1.0 - (current_time - oldest_request)
                 return False, max(0, wait_time)
 
     async def can_request(self, symbol: str) -> tuple[bool, str, float]:
         """
-        Check if we can make a request for a specific stock across all rate limits.
-        Returns (can_request, reason, max_wait_time_seconds)
+        檢查是否可以對特定股票進行請求，並檢查所有的流量限制。
+        返回 (can_request, reason, max_wait_time_seconds)
         """
-        # Check all rate limits
+        # 檢查所有流量限制
         stock_ok, stock_wait = self.can_request_stock(symbol)
         global_ok, global_wait = self.can_request_global()
         per_sec_ok, per_sec_wait = self.can_request_per_second()
 
-        # Find the most restrictive limit
+        # 找到最嚴格的限制
         max_wait = max(stock_wait, global_wait, per_sec_wait)
 
         if stock_ok and global_ok and per_sec_ok:
             return True, "allowed", 0.0
 
-        # Determine which limit is blocking
+        # 確定是哪個限制阻止了請求
         if not stock_ok and stock_wait == max_wait:
             reason = f"stock_limit_exceeded_for_{symbol}"
         elif not global_ok and global_wait == max_wait:
@@ -125,19 +125,19 @@ class RateLimiter:
         return False, reason, max_wait
 
     async def record_request(self, symbol: str) -> None:
-        """Record that a request was made for a specific stock."""
+        """記錄對特定股票的請求。"""
         current_time = time.time()
 
-        # Record per-stock request
+        # 記錄每支股票的請求
         with self.stock_lock:
             self.last_request_time[symbol] = current_time
 
-        # Record global request
+        # 記錄全域請求
         with self.global_lock:
             self.global_requests.append(current_time)
             self._clean_old_requests(self.global_requests, 60.0)
 
-        # Record per-second request
+        # 記錄每秒請求
         with self.per_second_lock:
             self.per_second_requests.append(current_time)
             self._clean_old_requests(self.per_second_requests, 1.0)
@@ -145,7 +145,7 @@ class RateLimiter:
         logger.debug(f"已記錄股票 {symbol} 的 API 請求")
 
     def get_stats(self) -> dict[str, Any]:
-        """Get current rate limiter statistics."""
+        """獲取當前流量限制器的統計資訊。"""
         current_time = time.time()
 
         with self.global_lock:
@@ -169,7 +169,7 @@ class RateLimiter:
         }
 
     def reset_limits(self) -> None:
-        """Reset all rate limiting counters. Use with caution."""
+        """重置所有流量限制計數器。使用時需謹慎。"""
         with self.stock_lock:
             self.last_request_time.clear()
 

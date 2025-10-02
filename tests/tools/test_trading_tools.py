@@ -8,9 +8,9 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from market_mcp.models.stock_data import TWStockResponse
-from market_mcp.models.trading_models import OrderStatus, OrderType
-from market_mcp.tools.trading_tool import TradingTool
+from src.models.stock_data import TWStockResponse
+from src.models.trading_models import OrderStatus, OrderType
+from src.tools.trading_tool import TradingTool
 
 
 class TestTradingTools(unittest.TestCase):

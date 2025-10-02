@@ -15,8 +15,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from market_mcp.scrapers.twse_isin_scraper import TWSeISINScraper
-from market_mcp.utils.logging import setup_logging
+from src.scrapers.twse_isin_scraper import TWSeISINScraper
+from src.utils.logging import setup_logging
 
 
 def test_scraper():

@@ -8,8 +8,8 @@ and configuration management.
 import pytest
 from unittest.mock import AsyncMock, patch
 
-# from market_mcp.config import Config, get_config, reload_config  # Config 已被移除
-from market_mcp.server import MCPServer
+# from src.config import Config, get_config, reload_config  # Config 已被移除
+from src.server import MCPServer
 
 
 # class TestConfig:

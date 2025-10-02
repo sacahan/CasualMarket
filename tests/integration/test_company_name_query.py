@@ -8,9 +8,9 @@ import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock
 
-from market_mcp.tools.stock_price_tool import StockPriceTool
-from market_mcp.data.securities_db import resolve_stock_symbol, SecuritiesDatabase
-from market_mcp.validators.input_validator import (
+from src.tools.stock_price_tool import StockPriceTool
+from src.data.securities_db import resolve_stock_symbol, SecuritiesDatabase
+from src.validators.input_validator import (
     MCPToolInputValidator,
     MCPValidationError,
 )

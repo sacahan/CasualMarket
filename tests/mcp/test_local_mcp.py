@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from market_mcp.tools.stock_price_tool import handle_get_taiwan_stock_price
+from src.tools.stock_price_tool import handle_get_taiwan_stock_price
 
 async def test_stock_price():
     """測試本地股票價格工具"""

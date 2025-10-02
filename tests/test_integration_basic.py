@@ -4,9 +4,9 @@ Basic integration test for the enhanced CasualTrader with TWSE financial analysi
 
 import pytest
 import asyncio
-from market_mcp.tools.analysis.financials import FinancialAnalysisTool
-from market_mcp.api.openapi_client import OpenAPIClient
-from market_mcp.cache.rate_limited_cache_service import RateLimitedCacheService
+from src.tools.analysis.financials import FinancialAnalysisTool
+from src.api.openapi_client import OpenAPIClient
+from src.cache.rate_limited_cache_service import RateLimitedCacheService
 
 
 class TestFinancialIntegration:

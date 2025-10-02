@@ -5,10 +5,10 @@
 
 import asyncio
 
-from market_mcp.tools.stock_price_tool import (
+from src.tools.stock_price_tool import (
     get_tool_definitions as get_stock_tool_defs,
 )
-from market_mcp.tools.trading_tool import get_trading_tool_definitions
+from src.tools.trading_tool import get_trading_tool_definitions
 
 
 async def test_tools():

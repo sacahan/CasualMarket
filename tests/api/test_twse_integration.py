@@ -7,8 +7,8 @@
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from market_mcp.api.twse_client import create_client
-from market_mcp.models.stock_data import APIError, ValidationError, TWStockResponse
+from src.api.twse_client import create_client
+from src.models.stock_data import APIError, ValidationError, TWStockResponse
 
 
 class TestTWStockAPIClient:
@@ -178,7 +178,7 @@ class TestTWStockAPIClient:
 
     def test_build_query_params(self, client):
         """測試查詢參數建構。"""
-        from market_mcp.models.stock_data import StockQuoteRequest
+        from src.models.stock_data import StockQuoteRequest
 
         request = StockQuoteRequest(symbol="2330", market="tse")
         params = client._build_query_params(request)

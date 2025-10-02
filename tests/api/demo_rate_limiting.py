@@ -6,8 +6,8 @@ Simulates real-world usage of the Taiwan Stock Exchange API protection.
 
 import asyncio
 import time
-from market_mcp.cache.rate_limited_cache_service import RateLimitedCacheService
-from market_mcp.utils.config_manager import ConfigManager
+from src.cache.rate_limited_cache_service import RateLimitedCacheService
+from src.utils.config_manager import ConfigManager
 
 
 async def simulate_stock_request(service, symbol: str) -> dict:

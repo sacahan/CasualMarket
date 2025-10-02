@@ -9,7 +9,7 @@ import asyncio
 import sys
 from io import StringIO
 
-from market_mcp.server import MCPServer
+from src.server import MCPServer
 
 
 async def test_mcp_tools():

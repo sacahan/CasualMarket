@@ -26,15 +26,16 @@ echo ""
 echo "測試財務分析功能..."
 uv run python -c "
 import asyncio
-from src.tools.analysis.financials import FinancialAnalysisTool
-from src.cache.rate_limited_cache_service import RateLimitedCacheService
+from src.tools.financial.company_profile import CompanyProfileTool
 
 async def test():
-    tool = FinancialAnalysisTool()
+    tool = CompanyProfileTool()
     try:
-        result = await tool.get_company_profile('2330')
+        result = await tool.safe_execute(symbol='2330')
         if result['success']:
-            print(f'✅ 公司資料: {result[\"data\"].get(\"公司簡稱\", \"N/A\")}')
+            company_data = result.get('data', {})
+            company_name = company_data.get('公司簡稱', company_data.get('name', 'N/A'))
+            print(f'✅ 公司資料: {company_name}')
         else:
             print(f'❌ 財務查詢失敗: {result.get(\"error\", \"Unknown\")}')
     except Exception as e:

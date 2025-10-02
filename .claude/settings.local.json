@@ -4,7 +4,9 @@
       "mcp__market",
       "WebFetch(domain:*)",
       "mcp__ide",
-      "Read(//Users/sacahan/Documents/workspace/**)"
+      "Read(//Users/sacahan/Documents/workspace/**)",
+      "Read(//tmp/**)",
+      "WebFetch(domain:openapi.twse.com.tw)"
     ]
   },
   "enableAllProjectMcpServers": true
