@@ -10,12 +10,34 @@ CasualMarket is a Taiwan Stock Exchange MCP (Model Context Protocol) Server that
 
 ### Server Execution
 
-```bash
-# Run the MCP server locally (primary method)
-uvx --from . casual-market-mcp
+#### Production Execution
 
-# Alternative development execution
-uv run python src/main.py
+```bash
+# Production deployment (uses cached builds)
+uvx --from . casual-market-mcp
+```
+
+#### Development Execution (Recommended for Active Development)
+
+```bash
+# Development mode - avoids uvx cache issues
+./scripts/dev-run.sh
+
+# Or manually with uv run
+uv run python -m src.main
+
+# Quick functionality test
+./scripts/dev-test.sh
+```
+
+#### Cache Management
+
+```bash
+# Clear uvx cache when needed (production deployment)
+uv cache clean
+
+# Development mode automatically uses latest code
+# No cache clearing needed when using uv run
 ```
 
 ### Testing

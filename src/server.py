@@ -19,8 +19,8 @@ logger = get_logger(__name__)
 # 創建 FastMCP 實例
 mcp = FastMCP(name="casual-market-mcp")
 
-# 全域 API 客戶端 (使用增強版，帶有速率限制和快取)
-api_client = create_client(enhanced=True)
+# 全域 API 客戶端 (帶有速率限制和快取)
+api_client = create_client()
 
 # 創建財務分析工具實例
 cache_service = RateLimitedCacheService()

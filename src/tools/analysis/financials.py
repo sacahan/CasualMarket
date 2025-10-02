@@ -25,7 +25,7 @@ class FinancialAnalysisTool:
         參數：
             cache_service: 可選的快取服務，用於速率限制與快取
         """
-        self.api_client = OpenAPIClient(cache_service)
+        self.api_client = OpenAPIClient()
 
     async def get_income_statement(self, symbol: str) -> dict[str, Any]:
         """

@@ -81,7 +81,7 @@ def with_cache_and_rate_limit(
                             raise APIError(f"Rate limited for {symbol}: {message}")
 
                     else:
-                        cached_data = await cache_service._get_cached_data(
+                        cached_data = await cache_service.cache_manager.get_cached_data(
                             symbol, cache_key_prefix
                         )
                         if cached_data and not force_refresh:
