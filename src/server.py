@@ -8,7 +8,6 @@ from typing import Any
 from fastmcp import FastMCP
 
 from .api.twse_client import create_client
-from .cache.rate_limited_cache_service import RateLimitedCacheService
 from .tools.analysis.financials import FinancialAnalysisTool
 from .utils.logging import get_logger, setup_logging
 
@@ -22,9 +21,8 @@ mcp = FastMCP(name="casual-market-mcp")
 # 全域 API 客戶端 (帶有速率限制和快取)
 api_client = create_client()
 
-# 創建財務分析工具實例
-cache_service = RateLimitedCacheService()
-financial_tool = FinancialAnalysisTool(cache_service)
+# 創建財務分析工具實例（使用 OpenAPIClient 內建快取）
+financial_tool = FinancialAnalysisTool()
 
 
 @mcp.tool
@@ -380,6 +378,665 @@ async def get_company_profile(symbol: str) -> dict[str, Any]:
     except Exception as e:
         logger.error(f"查詢公司基本資訊失敗: {e}")
         return {"success": False, "error": str(e), "company_code": symbol}
+
+
+@mcp.tool
+async def get_company_dividend(symbol: str) -> dict[str, Any]:
+    """
+    取得上市公司股利分配資訊。
+
+    Args:
+        symbol: 公司股票代碼
+
+    Returns:
+        包含股利分配資訊的字典
+    """
+    try:
+        logger.info(f"查詢公司股利資訊: {symbol}")
+
+        result = await financial_tool.get_company_dividend(symbol)
+
+        if result["success"]:
+            logger.info(f"成功取得 {symbol} 股利資訊")
+        else:
+            logger.warning(
+                f"無法取得 {symbol} 股利資訊: {result.get('error', 'Unknown error')}"
+            )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢股利資訊失敗: {e}")
+        return {"success": False, "error": str(e), "company_code": symbol}
+
+
+@mcp.tool
+async def get_company_monthly_revenue(symbol: str) -> dict[str, Any]:
+    """
+    取得上市公司月營收資訊。
+
+    Args:
+        symbol: 公司股票代碼
+
+    Returns:
+        包含月營收資訊的字典
+    """
+    try:
+        logger.info(f"查詢公司月營收: {symbol}")
+
+        result = await financial_tool.get_company_monthly_revenue(symbol)
+
+        if result["success"]:
+            logger.info(f"成功取得 {symbol} 月營收資料")
+        else:
+            logger.warning(
+                f"無法取得 {symbol} 月營收: {result.get('error', 'Unknown error')}"
+            )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢月營收失敗: {e}")
+        return {"success": False, "error": str(e), "company_code": symbol}
+
+
+@mcp.tool
+async def get_stock_daily_trading(symbol: str) -> dict[str, Any]:
+    """
+    取得股票日交易資訊。
+
+    Args:
+        symbol: 股票代碼
+
+    Returns:
+        包含日交易資訊的字典
+    """
+    try:
+        logger.info(f"查詢股票日交易資訊: {symbol}")
+
+        # 使用現有的 API 客戶端但針對日交易資料
+        stock_data = await api_client.get_stock_quote(symbol)
+
+        # 格式化日交易資料
+        result = {
+            "success": True,
+            "symbol": symbol,
+            "data": {
+                "trading_date": (
+                    stock_data.update_time.strftime("%Y-%m-%d")
+                    if stock_data.update_time
+                    else None
+                ),
+                "open_price": stock_data.open_price,
+                "high_price": stock_data.high_price,
+                "low_price": stock_data.low_price,
+                "close_price": stock_data.current_price,
+                "volume": stock_data.volume,
+                "change": stock_data.change,
+                "change_percent": stock_data.change_percent,
+                "previous_close": stock_data.previous_close,
+            },
+        }
+
+        logger.info(f"成功取得 {symbol} 日交易資料")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢日交易資料失敗: {e}")
+        return {"success": False, "error": str(e), "symbol": symbol}
+
+
+@mcp.tool
+async def get_etf_regular_investment_ranking() -> dict[str, Any]:
+    """
+    取得ETF定期定額排名資訊（前10名）。
+
+    Returns:
+        包含ETF定期定額排名的字典
+    """
+    try:
+        logger.info("查詢ETF定期定額排名")
+
+        # 使用 OpenAPI 客戶端取得 ETF 排名資料
+        data = await financial_tool.api_client.get_data("/ETFReport/ETFRank")
+
+        if not data:
+            return {
+                "success": False,
+                "error": "No ETF ranking data available",
+                "data": None,
+            }
+
+        # 限制前10名並格式化資料
+        top_10 = data[:10] if len(data) > 10 else data
+
+        result = {
+            "success": True,
+            "data": {
+                "ranking_date": None,  # API 資料中可能包含日期
+                "rankings": top_10,
+                "total_count": len(data),
+                "displayed_count": len(top_10),
+            },
+            "source": "TWSE ETF Report",
+        }
+
+        logger.info("成功取得ETF定期定額排名")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢ETF排名失敗: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool
+async def get_market_index_info(
+    category: str = "major", count: int = 20, format: str = "detailed"
+) -> dict[str, Any]:
+    """
+    取得市場指數資訊。
+
+    Args:
+        category: 指數類別 ("major"=主要指數, "sector"=產業指數, "all"=全部)
+        count: 返回數量 (預設20筆)
+        format: 格式 ("detailed"=詳細, "summary"=摘要, "simple"=簡單)
+
+    Returns:
+        包含市場指數資訊的字典
+    """
+    try:
+        logger.info(
+            f"查詢市場指數: category={category}, count={count}, format={format}"
+        )
+
+        # 使用 OpenAPI 客戶端取得市場指數資料
+        data = await financial_tool.api_client.get_latest_market_data(
+            "/exchangeReport/MI_INDEX"
+        )
+
+        if not data:
+            return {
+                "success": False,
+                "error": "No market index data available",
+                "data": None,
+            }
+
+        # 根據類別篩選指數
+        filtered_data = []
+        if category == "major":
+            # 主要指數：核心市場基準
+            filtered_data = [
+                item
+                for item in data
+                if not any(
+                    pattern in item.get("指數", "")
+                    for pattern in ["類指數", "報酬指數", "兩倍", "反向", "槓桿"]
+                )
+                and any(
+                    pattern in item.get("指數", "")
+                    for pattern in [
+                        "發行量加權",
+                        "寶島",
+                        "臺灣50",
+                        "中型",
+                        "小型",
+                        "未含",
+                        "公司治理",
+                        "高股息",
+                    ]
+                )
+            ]
+        elif category == "sector":
+            # 產業指數
+            filtered_data = [
+                item
+                for item in data
+                if "類指數" in item.get("指數", "")
+                and "報酬指數" not in item.get("指數", "")
+            ]
+        else:  # category == "all" or other
+            filtered_data = data
+
+        # 限制數量
+        result_data = filtered_data[:count] if count > 0 else filtered_data
+
+        # 根據格式格式化輸出
+        formatted_data = result_data
+        if format == "summary":
+            formatted_data = [
+                {
+                    "name": item.get("指數", ""),
+                    "close": item.get("收盤指數", ""),
+                    "change_percent": item.get("漲跌百分比", ""),
+                    "direction": item.get("漲跌", ""),
+                }
+                for item in result_data
+            ]
+        elif format == "simple":
+            formatted_data = [
+                f"{item.get('指數', '')}: {item.get('漲跌', '')}{item.get('漲跌百分比', '')}%"
+                for item in result_data
+            ]
+
+        result = {
+            "success": True,
+            "data": {
+                "category": category,
+                "count": len(formatted_data),
+                "format": format,
+                "indices": formatted_data,
+            },
+            "source": "TWSE Market Index Report",
+        }
+
+        logger.info(f"成功取得 {len(formatted_data)} 筆市場指數資料")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢市場指數失敗: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool
+async def get_margin_trading_info() -> dict[str, Any]:
+    """
+    取得融資融券資訊。
+
+    Returns:
+        包含融資融券資訊的字典
+    """
+    try:
+        logger.info("查詢融資融券資訊")
+
+        # 使用 OpenAPI 客戶端取得融資融券資料
+        data = await financial_tool.api_client.get_data("/exchangeReport/MI_MARGN")
+
+        if not data:
+            return {
+                "success": False,
+                "error": "No margin trading data available",
+                "data": None,
+            }
+
+        # 限制前10筆避免資料過多
+        top_10 = data[:10] if len(data) > 10 else data
+
+        result = {
+            "success": True,
+            "data": {
+                "margin_data": top_10,
+                "total_count": len(data),
+                "displayed_count": len(top_10),
+            },
+            "source": "TWSE Margin Trading Report",
+        }
+
+        logger.info(f"成功取得融資融券資料: {len(top_10)} 筆")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢融資融券資料失敗: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool
+async def get_real_time_trading_stats() -> dict[str, Any]:
+    """
+    取得即時交易統計資訊（5分鐘資料）。
+
+    Returns:
+        包含即時交易統計的字典
+    """
+    try:
+        logger.info("查詢即時交易統計")
+
+        # 使用 OpenAPI 客戶端取得即時交易統計
+        data = await financial_tool.api_client.get_latest_market_data(
+            "/exchangeReport/MI_5MINS", count=10
+        )
+
+        if not data:
+            return {
+                "success": False,
+                "error": "No real-time trading stats available",
+                "data": None,
+            }
+
+        result = {
+            "success": True,
+            "data": {
+                "trading_stats": data,
+                "count": len(data),
+                "frequency": "5_minutes",
+            },
+            "source": "TWSE Real-time Trading Statistics",
+        }
+
+        logger.info(f"成功取得即時交易統計: {len(data)} 筆")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢即時交易統計失敗: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool
+async def get_stock_valuation_ratios(symbol: str) -> dict[str, Any]:
+    """
+    取得股票估值比率 (P/E, P/B, 殖利率)。
+
+    Args:
+        symbol: 股票代碼
+
+    Returns:
+        包含估值比率的字典
+    """
+    try:
+        logger.info(f"查詢股票估值比率: {symbol}")
+
+        result = await financial_tool.get_stock_valuation_ratios(symbol)
+
+        if result["success"]:
+            logger.info(f"成功取得 {symbol} 估值比率資料")
+        else:
+            logger.warning(
+                f"無法取得 {symbol} 估值比率: {result.get('error', 'Unknown error')}"
+            )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢估值比率失敗: {e}")
+        return {"success": False, "error": str(e), "company_code": symbol}
+
+
+@mcp.tool
+async def get_dividend_rights_schedule(symbol: str = "") -> dict[str, Any]:
+    """
+    取得除權息行事曆。
+
+    Args:
+        symbol: 股票代碼 (可選，空字串則查詢全部)
+
+    Returns:
+        包含除權息行事曆的字典
+    """
+    try:
+        logger.info(f"查詢除權息行事曆: {symbol or '全部'}")
+
+        endpoint = "/exchangeReport/TWT48U_ALL"
+        if symbol:
+            # 查詢特定公司
+            data = await financial_tool.api_client.get_company_data(endpoint, symbol)
+            if not data:
+                return {
+                    "success": False,
+                    "error": f"No dividend schedule found for {symbol}",
+                    "data": None,
+                }
+            result_data = [data] if isinstance(data, dict) else data
+        else:
+            # 查詢全部
+            data = await financial_tool.api_client.get_data(endpoint)
+            if not data:
+                return {
+                    "success": False,
+                    "error": "No dividend schedule data available",
+                    "data": None,
+                }
+            # 限制前20筆避免資料過多
+            result_data = data[:20] if len(data) > 20 else data
+
+        result = {
+            "success": True,
+            "data": {
+                "dividend_schedule": result_data,
+                "query_symbol": symbol or "all",
+                "total_count": len(data) if not symbol else 1,
+                "displayed_count": len(result_data),
+            },
+            "source": "TWSE Exchange Report",
+        }
+
+        logger.info(f"成功取得除權息資料: {len(result_data)} 筆")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢除權息行事曆失敗: {e}")
+        return {"success": False, "error": str(e), "query_symbol": symbol}
+
+
+@mcp.tool
+async def get_stock_monthly_trading(symbol: str) -> dict[str, Any]:
+    """
+    取得股票月交易資訊。
+
+    Args:
+        symbol: 股票代碼
+
+    Returns:
+        包含月交易資訊的字典
+    """
+    try:
+        logger.info(f"查詢股票月交易資訊: {symbol}")
+
+        endpoint = "/exchangeReport/FMSRFK_ALL"
+        data = await financial_tool.api_client.get_company_data(endpoint, symbol)
+
+        if not data:
+            return {
+                "success": False,
+                "error": f"No monthly trading data found for {symbol}",
+                "data": None,
+            }
+
+        result = {
+            "success": True,
+            "company_code": symbol,
+            "data": data,
+            "source": "TWSE Exchange Report",
+        }
+
+        logger.info(f"成功取得 {symbol} 月交易資料")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢月交易資料失敗: {e}")
+        return {"success": False, "error": str(e), "company_code": symbol}
+
+
+@mcp.tool
+async def get_stock_yearly_trading(symbol: str) -> dict[str, Any]:
+    """
+    取得股票年交易資訊。
+
+    Args:
+        symbol: 股票代碼
+
+    Returns:
+        包含年交易資訊的字典
+    """
+    try:
+        logger.info(f"查詢股票年交易資訊: {symbol}")
+
+        endpoint = "/exchangeReport/FMNPTK_ALL"
+        data = await financial_tool.api_client.get_company_data(endpoint, symbol)
+
+        if not data:
+            return {
+                "success": False,
+                "error": f"No yearly trading data found for {symbol}",
+                "data": None,
+            }
+
+        result = {
+            "success": True,
+            "company_code": symbol,
+            "data": data,
+            "source": "TWSE Exchange Report",
+        }
+
+        logger.info(f"成功取得 {symbol} 年交易資料")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢年交易資料失敗: {e}")
+        return {"success": False, "error": str(e), "company_code": symbol}
+
+
+@mcp.tool
+async def get_stock_monthly_average(symbol: str) -> dict[str, Any]:
+    """
+    取得股票月平均價格。
+
+    Args:
+        symbol: 股票代碼
+
+    Returns:
+        包含月平均價格的字典
+    """
+    try:
+        logger.info(f"查詢股票月平均價格: {symbol}")
+
+        endpoint = "/exchangeReport/STOCK_DAY_AVG_ALL"
+        data = await financial_tool.api_client.get_company_data(endpoint, symbol)
+
+        if not data:
+            return {
+                "success": False,
+                "error": f"No monthly average data found for {symbol}",
+                "data": None,
+            }
+
+        result = {
+            "success": True,
+            "company_code": symbol,
+            "data": data,
+            "source": "TWSE Exchange Report",
+        }
+
+        logger.info(f"成功取得 {symbol} 月平均價格資料")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢月平均價格失敗: {e}")
+        return {"success": False, "error": str(e), "company_code": symbol}
+
+
+@mcp.tool
+async def get_foreign_investment_by_industry() -> dict[str, Any]:
+    """
+    取得外資持股(按產業別)。
+
+    Returns:
+        包含各產業外資持股比率統計的字典
+    """
+    try:
+        logger.info("查詢外資持股(按產業別)")
+
+        endpoint = "/fund/MI_QFIIS_cat"
+        data = await financial_tool.api_client.get_data(endpoint)
+
+        if not data:
+            return {
+                "success": False,
+                "error": "No foreign investment data by industry available",
+                "data": None,
+            }
+
+        result = {
+            "success": True,
+            "data": {
+                "industry_foreign_investment": data,
+                "total_industries": len(data),
+            },
+            "source": "TWSE Fund Report",
+        }
+
+        logger.info(f"成功取得外資持股產業資料: {len(data)} 個產業")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢外資持股產業資料失敗: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool
+async def get_top_foreign_holdings() -> dict[str, Any]:
+    """
+    取得外資持股前20名。
+
+    Returns:
+        包含外資持股排名前20的公司詳細資訊的字典
+    """
+    try:
+        logger.info("查詢外資持股前20名")
+
+        endpoint = "/fund/MI_QFIIS_sort_20"
+        data = await financial_tool.api_client.get_data(endpoint)
+
+        if not data:
+            return {
+                "success": False,
+                "error": "No top foreign holdings data available",
+                "data": None,
+            }
+
+        result = {
+            "success": True,
+            "data": {
+                "top_foreign_holdings": data,
+                "count": len(data),
+            },
+            "source": "TWSE Fund Report",
+        }
+
+        logger.info(f"成功取得外資持股前20名: {len(data)} 筆")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢外資持股前20名失敗: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool
+async def get_market_historical_index() -> dict[str, Any]:
+    """
+    取得歷史指數資料。
+
+    Returns:
+        包含TAIEX歷史資料的字典
+    """
+    try:
+        logger.info("查詢歷史指數資料")
+
+        endpoint = "/indicesReport/MI_5MINS_HIST"
+        data = await financial_tool.api_client.get_latest_market_data(
+            endpoint, count=20
+        )
+
+        if not data:
+            return {
+                "success": False,
+                "error": "No historical index data available",
+                "data": None,
+            }
+
+        result = {
+            "success": True,
+            "data": {
+                "historical_index": data,
+                "count": len(data),
+            },
+            "source": "TWSE Indices Report",
+        }
+
+        logger.info(f"成功取得歷史指數資料: {len(data)} 筆")
+        return result
+
+    except Exception as e:
+        logger.error(f"查詢歷史指數資料失敗: {e}")
+        return {"success": False, "error": str(e)}
 
 
 def main() -> None:

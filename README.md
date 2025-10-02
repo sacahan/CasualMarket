@@ -180,6 +180,10 @@ uv run python tests/api/debug_api.py
 
 MIT License - 詳見 [LICENSE](LICENSE) 檔案。
 
+## 📚 Documentation
+
+- [缺少工具實作清單](docs/MISSING_TOOLS_IMPLEMENTATION.md) - 尚未實作的 TWSEMCPServer 工具功能
+
 ## 🤝 Contributing
 
 歡迎提交 Issue 和 Pull Request！請確保：

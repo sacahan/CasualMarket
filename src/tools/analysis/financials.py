@@ -6,7 +6,6 @@
 from typing import Any
 
 from ...api.openapi_client import OpenAPIClient
-from ...cache.rate_limited_cache_service import RateLimitedCacheService
 from ...utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -14,16 +13,15 @@ logger = get_logger(__name__)
 
 class FinancialAnalysisTool:
     """
-    財務分析工具，整合快取與速率限制。
+    財務分析工具，使用 OpenAPIClient 內建的快取與速率限制。
     提供完整的綜合損益表與資產負債表分析。
     """
 
-    def __init__(self, cache_service: RateLimitedCacheService | None = None):
+    def __init__(self):
         """
         初始化財務分析工具。
 
-        參數：
-            cache_service: 可選的快取服務，用於速率限制與快取
+        使用 OpenAPIClient 的內建快取與速率限制功能。
         """
         self.api_client = OpenAPIClient()
 
@@ -155,6 +153,102 @@ class FinancialAnalysisTool:
 
         except Exception as e:
             logger.error(f"Error fetching company profile for {symbol}: {e}")
+            return {"success": False, "error": str(e), "company_code": symbol}
+
+    async def get_company_dividend(self, symbol: str) -> dict[str, Any]:
+        """
+        取得公司股利分配資訊。
+
+        參數：
+            symbol: 公司股票代碼
+
+        回傳：
+            包含股利分配資訊的字典
+        """
+        try:
+            endpoint = "/opendata/t187ap45_L"
+            data = await self.api_client.get_company_data(endpoint, symbol)
+
+            if not data:
+                return {
+                    "success": False,
+                    "error": f"No dividend data found for {symbol}",
+                    "data": None,
+                }
+
+            return {
+                "success": True,
+                "company_code": symbol,
+                "data": data,
+                "source": "TWSE OpenAPI",
+            }
+
+        except Exception as e:
+            logger.error(f"Error fetching dividend info for {symbol}: {e}")
+            return {"success": False, "error": str(e), "company_code": symbol}
+
+    async def get_company_monthly_revenue(self, symbol: str) -> dict[str, Any]:
+        """
+        取得公司月營收資訊。
+
+        參數：
+            symbol: 公司股票代碼
+
+        回傳：
+            包含月營收資訊的字典
+        """
+        try:
+            endpoint = "/opendata/t187ap05_L"
+            data = await self.api_client.get_company_data(endpoint, symbol)
+
+            if not data:
+                return {
+                    "success": False,
+                    "error": f"No monthly revenue data found for {symbol}",
+                    "data": None,
+                }
+
+            return {
+                "success": True,
+                "company_code": symbol,
+                "data": data,
+                "source": "TWSE OpenAPI",
+            }
+
+        except Exception as e:
+            logger.error(f"Error fetching monthly revenue for {symbol}: {e}")
+            return {"success": False, "error": str(e), "company_code": symbol}
+
+    async def get_stock_valuation_ratios(self, symbol: str) -> dict[str, Any]:
+        """
+        取得股票估值比率 (P/E, P/B, 殖利率)。
+
+        參數：
+            symbol: 股票代碼
+
+        回傳：
+            包含估值比率資訊的字典
+        """
+        try:
+            endpoint = "/exchangeReport/BWIBBU_ALL"
+            data = await self.api_client.get_company_data(endpoint, symbol)
+
+            if not data:
+                return {
+                    "success": False,
+                    "error": f"No valuation ratios found for {symbol}",
+                    "data": None,
+                }
+
+            return {
+                "success": True,
+                "company_code": symbol,
+                "data": data,
+                "source": "TWSE Exchange Report",
+            }
+
+        except Exception as e:
+            logger.error(f"Error fetching valuation ratios for {symbol}: {e}")
             return {"success": False, "error": str(e), "company_code": symbol}
 
     def _format_financial_data(

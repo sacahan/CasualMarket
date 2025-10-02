@@ -53,9 +53,9 @@ dev = [
 casual-market-mcp = "src.main:main"
 
 [project.urls]
-Homepage = ""
-Repository = ""
-Issues = ""
+Homepage = "https://github.com/sacahan/CasualMarket"
+Repository = "https://github.com/sacahan/CasualMarket.git"
+Issues = "https://github.com/sacahan/CasualMarket/issues"
 
 [dependency-groups]
 dev = [
