@@ -25,6 +25,7 @@ from ..parsers.twse_parser import create_parser
 from ..securities_db import get_securities_database
 from ..utils.logging import get_logger
 from ..utils.validators import determine_market_type, validate_taiwan_stock_symbol
+from .decorators import with_cache
 
 # 設置日誌
 logger = get_logger(__name__)
@@ -67,6 +68,7 @@ class TWStockAPIClient:
 
         logger.debug("TWStockAPIClient 初始化完成")
 
+    @with_cache("quote", enable_rate_limit=True)
     async def get_stock_quote(
         self, symbol: str, market: str | None = None
     ) -> TWStockResponse:
@@ -367,40 +369,19 @@ class TWStockAPIClient:
         self.close()
 
 
-def create_client(
-    enhanced: bool = True, config_file: str | None = None
-) -> TWStockAPIClient:
+def create_client() -> TWStockAPIClient:
     """
     建立台灣證交所 API 客戶端實例。
 
-    Args:
-        enhanced: 是否啟用速率限制和快取功能 (預設: True)
-        config_file: 配置檔案路徑 (僅在 enhanced=True 時使用)
-
     Returns:
-        TWStockAPIClient: API 客戶端實例 (可能帶有增強功能)
+        TWStockAPIClient: 帶有快取和速率限制功能的 API 客戶端實例
 
     Examples:
-        >>> # 建立帶有增強功能的客戶端 (預設)
         >>> client = create_client()
         >>> quote = await client.get_stock_quote("2330")
-
-        >>> # 建立基本客戶端 (無快取和速率限制)
-        >>> client = create_client(enhanced=False)
-        >>> quote = await client.get_stock_quote("2330")
-
-        >>> # 建立帶有自訂配置的增強客戶端
-        >>> client = create_client(enhanced=True, config_file="custom_config.yaml")
     """
-    if enhanced:
-        from .decorators import with_rate_limiting_and_cache
-
-        logger.debug(f"建立增強版 TWStockAPIClient 實例，配置檔案: {config_file}")
-        enhanced_class = with_rate_limiting_and_cache(config_file)(TWStockAPIClient)
-        return enhanced_class()
-    else:
-        logger.debug("建立基本版 TWStockAPIClient 實例")
-        return TWStockAPIClient()
+    logger.debug("建立 TWStockAPIClient 實例")
+    return TWStockAPIClient()
 
 
 # 增加 main 函式以便直接執行測試

@@ -55,6 +55,12 @@ uv run ruff check --fix src/ tests/
 ```bash
 # Test uvx execution and MCP protocol
 ./tests/test_uvx_execution.sh
+
+# Test specific enhanced client functionality
+uv run python tests/api/demo_enhanced_client.py
+
+# Debug API functionality
+uv run python tests/api/debug_api.py
 ```
 
 ## Architecture Overview
@@ -62,23 +68,31 @@ uv run ruff check --fix src/ tests/
 ### Core Components
 
 1. **FastMCP Server** (`src/server.py`): Main MCP server using `@mcp.tool` decorators for simplified tool registration
-2. **API Client** (`src/api/twse_client.py`): Taiwan Stock Exchange API integration with retry logic
-3. **Cache System** (`src/cache/`): Integrated rate limiting and caching service
-4. **Financial Tools** (`src/tools/analysis/`): Advanced financial analysis using TWSE OpenAPI
-5. **Data Models** (`src/models/`): Pydantic models for stock data and API responses
+2. **API Client Layer** (`src/api/`):
+   - `twse_client.py`: Taiwan Stock Exchange API integration with decorator-based enhancements
+   - `openapi_client.py`: TWSE OpenAPI integration for financial statements
+   - `decorators.py`: Function decorators for adding caching and rate limiting to API methods
+3. **Cache System** (`src/cache/`): Integrated rate limiting and caching service with request tracking
+4. **Securities Database** (`src/securities_db.py`): SQLite database for ISIN codes and company name resolution
+5. **Financial Tools** (`src/tools/analysis/`): Advanced financial analysis using TWSE OpenAPI
+6. **Data Models** (`src/models/`): Pydantic models for stock data, trading operations, and API responses
+7. **Scrapers** (`src/scrapers/`): TWSE data scrapers for maintaining the securities database
 
 ### Key Architectural Patterns
 
 - **FastMCP Integration**: Uses `@mcp.tool` decorators instead of traditional MCP server setup
+- **Decorator-Based Enhancement**: Function decorators (`@with_cache`) add caching and rate limiting to API methods
 - **Rate Limited Caching**: All API calls go through `RateLimitedCacheService` to prevent API abuse
 - **Layered Validation**: Input validation at multiple levels (symbol format, market type, API response)
-- **Company Name Resolution**: Supports both stock codes and company names for user-friendly queries
+- **Company Name Resolution**: Supports both stock codes and company names via local SQLite database
+- **Modular Tool Design**: Financial analysis tools are pluggable components using dependency injection
 
 ### Data Flow
 
-1. **Tool Request** → **Input Validation** → **Cache Check** → **API Call** → **Response Parsing** → **Tool Response**
+1. **Tool Request** → **Input Validation** → **Company Name Resolution** → **Cache Check** → **API Call** → **Response Parsing** → **Tool Response**
 2. **Rate Limiting**: Enforced at cache service level before API calls
-3. **Error Handling**: Graceful fallbacks with detailed error messages
+3. **Error Handling**: Graceful fallbacks with detailed error messages and client switching
+4. **Database Integration**: Company names resolved to stock codes via local SQLite database before API calls
 
 ## Module Dependencies
 
@@ -132,9 +146,11 @@ Example Claude Desktop configuration in `examples/claude_desktop_config.json`:
 
 ### API Client Usage
 
-- Always use `TWStockAPIClient` for TWSE API calls
-- Cache service is automatically integrated - don't bypass it
+- API methods are enhanced with `@with_cache` decorators for automatic caching and rate limiting
+- Cache service is globally managed and automatically integrated - don't bypass it
 - Handle both stock codes (2330) and company names ("台積電") in user inputs
+- Company name resolution happens automatically via the securities database
+- Use `force_refresh=True` parameter to bypass cache when needed
 
 ### Error Handling
 
@@ -144,10 +160,19 @@ Example Claude Desktop configuration in `examples/claude_desktop_config.json`:
 
 ### Testing Strategy
 
-- Test real API integration in `tests/api/`
+- Test real API integration in `tests/api/` (includes rate limiting and decorator-based caching tests)
 - Mock external dependencies for unit tests
 - Use pytest-asyncio for async test cases
+- Run the `test_uvx_execution.sh` script to verify MCP protocol compliance
+- Test decorator functionality and cache behavior
 - Maintain high test coverage (current target: >80%)
+
+### Database Management
+
+- **Securities Database**: `src/twse_securities.db` contains ISIN codes and company name mappings
+- **Database Updates**: Use scrapers in `src/scrapers/` to refresh company data
+- **Company Name Resolution**: Handled automatically via `securities_db.py` module
+- **Testing Database**: Isolated test database used during testing to avoid conflicts
 
 ### FastMCP Tool Development
 
@@ -155,3 +180,25 @@ Example Claude Desktop configuration in `examples/claude_desktop_config.json`:
 - Include comprehensive docstrings for tool descriptions
 - Return structured dictionaries with consistent `status` field
 - Handle Taiwan-specific requirements (1000-share minimum trading units)
+- Integrate with `FinancialAnalysisTool` for complex financial calculations
+
+### Decorator Usage
+
+- Use `@with_cache(cache_key_prefix, enable_rate_limit)` for API methods requiring caching
+- Cache key prefix should be descriptive (e.g., "quote", "financial", "profile")
+- Enable rate limiting for real-time data, disable for less frequent data sources
+- Decorators handle global cache service initialization automatically
+
+**Examples:**
+
+```python
+@with_cache("quote", enable_rate_limit=True)
+async def get_stock_quote(self, symbol: str):
+    # Real-time stock quotes need rate limiting
+    pass
+
+@with_cache("financial", enable_rate_limit=False)
+async def get_financial_data(self, symbol: str):
+    # Financial reports don't need rate limiting
+    pass
+```

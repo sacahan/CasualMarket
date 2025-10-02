@@ -1,37 +1,32 @@
 """
-TWSE OpenAPI Client with integrated caching and rate limiting.
-Extends the existing enhanced architecture for comprehensive TWSE data access.
+台灣證券交易所 OpenAPI 客戶端，整合快取和速率限制功能。
+
+擴展現有的增強架構，提供全面的台灣證交所資料存取服務。
 """
 
 from typing import Any
 
 import httpx
 
-from ..cache.rate_limited_cache_service import RateLimitedCacheService
 from ..utils.logging import get_logger
+from .decorators import with_cache
 
 logger = get_logger(__name__)
 
 
 class OpenAPIClient:
     """
-    TWSE OpenAPI client with integrated caching and rate limiting.
-    Works with the enhanced TWStockAPIClient architecture.
+    台灣證交所 OpenAPI 客戶端，整合快取和速率限制功能。
+
+    與增強型 TWStockAPIClient 架構協同工作。
     """
 
     BASE_URL = "https://openapi.twse.com.tw/v1"
     USER_AGENT = "CasualTrader-MCP/2.0"
 
-    def __init__(self, cache_service: RateLimitedCacheService | None = None):
-        """
-        Initialize OpenAPI client with cache service.
-
-        Args:
-            cache_service: Optional cache service for rate limiting and caching
-        """
+    def __init__(self):
+        """初始化 OpenAPI 客戶端。"""
         logger.debug("初始化 OpenAPIClient")
-
-        self.cache_service = cache_service or RateLimitedCacheService()
         self.session = httpx.Client(
             headers={"User-Agent": self.USER_AGENT, "Accept": "application/json"},
             timeout=30.0,
@@ -45,157 +40,121 @@ class OpenAPIClient:
 
     async def get_data(self, endpoint: str) -> list[dict[str, Any]]:
         """
-        Fetch data from TWSE OpenAPI endpoint with caching and rate limiting.
+        從台灣證交所 OpenAPI 端點取得資料，具備快取和速率限制功能。
 
         Args:
-            endpoint: API endpoint path (e.g., "/opendata/t187ap03_L")
+            endpoint: API 端點路徑（例如："/opendata/t187ap03_L"）
 
         Returns:
-            List of dictionaries containing API response data
+            包含 API 回應資料的字典清單
         """
-        cache_key = f"openapi:{endpoint}"
-        logger.info(f"開始請求 OpenAPI 資料: {endpoint}")
-
-        # Use integrated cache service if available
-        if self.cache_service:
-            logger.debug("使用快取服務處理請求")
-            try:
-
-                async def fetch_func():
-                    url = f"{self.BASE_URL}{endpoint}"
-                    logger.debug(f"從 OpenAPI 取得資料: {url}")
-
-                    response = self.session.get(url)
-                    response.raise_for_status()
-
-                    # Ensure UTF-8 encoding
-                    response.encoding = "utf-8"
-                    data = response.json()
-
-                    logger.debug(f"OpenAPI 回應成功，資料類型: {type(data)}")
-                    # Normalize response format
-                    result = data if isinstance(data, list) else [data] if data else []
-                    logger.debug(f"正規化後資料數量: {len(result)}")
-                    return result
-
-                # Use the integrated cache and rate limiting service
-                result = await self.cache_service.get_cached_or_wait(
-                    symbol=cache_key, fetch_func=fetch_func
-                )
-                logger.info(f"OpenAPI 請求完成: {endpoint}，取得 {len(result)} 筆資料")
-                return result
-
-            except Exception as e:
-                logger.error(f"快取服務錯誤: {e}")
-                logger.warning("回退到直接請求模式")
-                # Fall back to direct fetch
-                pass
-
-        # Direct fetch without cache (fallback)
+        # 簡化的直接取得方式 - 快取和速率限制由裝飾器處理
         url = f"{self.BASE_URL}{endpoint}"
-        logger.info(f"直接請求 OpenAPI 資料: {url} (無快取)")
+        logger.info(f"請求 OpenAPI 資料: {url}")
 
         try:
             response = self.session.get(url)
             response.raise_for_status()
 
-            # Ensure UTF-8 encoding
+            # 確保使用 UTF-8 編碼
             response.encoding = "utf-8"
             data = response.json()
 
-            logger.debug(f"直接請求成功，狀態碼: {response.status_code}")
-            # Normalize response format
+            logger.debug(f"請求成功，狀態碼: {response.status_code}")
+            # 正規化回應格式
             result = data if isinstance(data, list) else [data] if data else []
-            logger.info(f"OpenAPI 直接請求完成: {endpoint}，取得 {len(result)} 筆資料")
+            logger.info(f"OpenAPI 請求完成: {endpoint}，取得 {len(result)} 筆資料")
             return result
 
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP 狀態錯誤: {url} - {e.response.status_code}: {e}")
-            raise Exception(f"API request failed: {e}") from e
+            raise Exception(f"API 請求失敗: {e}") from e
         except Exception as e:
             logger.error(f"請求失敗: {url} - {type(e).__name__}: {e}")
-            raise Exception(f"Failed to fetch data: {e}") from e
+            raise Exception(f"取得資料失敗: {e}") from e
 
-    async def get_company_data(self, endpoint: str, code: str) -> dict[str, Any] | None:
+    @with_cache("profile", enable_rate_limit=False)
+    async def get_company_data(
+        self, endpoint: str, symbol: str
+    ) -> dict[str, Any] | None:
         """
-        Fetch company-specific data from TWSE OpenAPI.
+        從台灣證交所 OpenAPI 取得公司特定資料。
 
         Args:
-            endpoint: API endpoint path
-            code: Company stock code
+            endpoint: API 端點路徑
+            symbol: 公司股票代號
 
         Returns:
-            Dictionary containing company data or None if not found
+            包含公司資料的字典，或 None（如果找不到）
         """
         try:
             data = await self.get_data(endpoint)
 
-            # Filter data by company code
+            # 根據公司代號篩選資料
             filtered_data = [
                 item
                 for item in data
                 if isinstance(item, dict)
                 and (
-                    item.get("公司代號") == code
-                    or item.get("Code") == code
-                    or item.get("證券代號") == code
+                    item.get("公司代號") == symbol
+                    or item.get("Code") == symbol
+                    or item.get("證券代號") == symbol
                 )
             ]
 
             result = filtered_data[0] if filtered_data else None
-            logger.debug(
-                f"Company data for {code}: {'found' if result else 'not found'}"
-            )
+            logger.debug(f"公司 {symbol} 的資料: {'找到' if result else '未找到'}")
             return result
 
         except Exception as e:
-            logger.error(f"Failed to fetch company data for {code}: {e}")
+            logger.error(f"取得公司 {symbol} 資料失敗: {e}")
             return None
 
     async def get_latest_market_data(
         self, endpoint: str, count: int | None = None
     ) -> list[dict[str, Any]]:
         """
-        Fetch latest market data from TWSE OpenAPI.
+        從台灣證交所 OpenAPI 取得最新市場資料。
 
         Args:
-            endpoint: API endpoint path
-            count: Number of latest records to return. If None, returns all records.
+            endpoint: API 端點路徑
+            count: 要返回的最新記錄數量。如果為 None，則返回所有記錄。
 
         Returns:
-            List of latest market data records
+            最新市場資料記錄清單
         """
         try:
             data = await self.get_data(endpoint)
 
-            # Return latest records or all data if count is None
+            # 返回最新記錄或所有資料（如果 count 為 None）
             result = data[-count:] if data and count is not None else data
-            logger.debug(f"Market data from {endpoint}: {len(result)} records")
+            logger.debug(f"從 {endpoint} 取得市場資料: {len(result)} 筆記錄")
             return result
 
         except Exception as e:
-            logger.error(f"Failed to fetch latest market data: {e}")
+            logger.error(f"取得最新市場資料失敗: {e}")
             return []
 
-    async def get_industry_api_suffix(self, code: str) -> str:
+    @with_cache("profile", enable_rate_limit=False)
+    async def get_industry_api_suffix(self, symbol: str) -> str:
         """
-        Get the appropriate API suffix based on company industry.
+        根據公司產業別取得適當的 API 後綴。
 
         Args:
-            code: Company stock code
+            symbol: 公司股票代號
 
         Returns:
-            API suffix for the company's industry
+            該公司產業別對應的 API 後綴
         """
         try:
-            profile_data = await self.get_company_data("/opendata/t187ap03_L", code)
+            profile_data = await self.get_company_data("/opendata/t187ap03_L", symbol)
 
             if not profile_data:
-                return "_ci"  # Default to general industry
+                return "_ci"  # 預設為一般業
 
             industry = profile_data.get("產業別", "")
 
-            # Map industry to API suffix
+            # 產業別對應 API 後綴的映射
             industry_mapping = {
                 "金融業": "_basi",
                 "證券期貨業": "_bd",
@@ -205,19 +164,19 @@ class OpenAPIClient:
                 "一般業": "_ci",
             }
 
-            # Check if industry exactly matches or contains any of the key terms
+            # 檢查產業別是否完全符合或包含任何關鍵字
             for industry_key, suffix in industry_mapping.items():
                 if industry_key in industry or industry == industry_key:
                     return suffix
 
-            return "_ci"  # Default to general industry if no match
+            return "_ci"  # 如果沒有符合，預設為一般業
 
         except Exception as e:
-            logger.error(f"Error determining industry for {code}: {e}")
-            return "_ci"  # Default to general industry on error
+            logger.error(f"判斷公司 {symbol} 產業別時發生錯誤: {e}")
+            return "_ci"  # 發生錯誤時預設為一般業
 
     def close(self):
-        """Close the HTTP session."""
+        """關閉 HTTP 會話。"""
         self.session.close()
 
     def __enter__(self):

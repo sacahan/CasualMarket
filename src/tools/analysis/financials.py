@@ -1,6 +1,6 @@
 """
-Financial analysis tools using TWSE OpenAPI integration.
-Integrates with existing CasualTrader architecture for comprehensive financial analysis.
+財務分析工具，整合台灣證券交易所（TWSE）OpenAPI。
+與現有 CasualTrader 架構整合，提供完整的財務分析。
 """
 
 from typing import Any
@@ -14,44 +14,44 @@ logger = get_logger(__name__)
 
 class FinancialAnalysisTool:
     """
-    Financial analysis tool with integrated caching and rate limiting.
-    Provides comprehensive income statement and balance sheet analysis.
+    財務分析工具，整合快取與速率限制。
+    提供完整的綜合損益表與資產負債表分析。
     """
 
     def __init__(self, cache_service: RateLimitedCacheService | None = None):
         """
-        Initialize financial analysis tool.
+        初始化財務分析工具。
 
-        Args:
-            cache_service: Optional cache service for rate limiting and caching
+        參數：
+            cache_service: 可選的快取服務，用於速率限制與快取
         """
         self.api_client = OpenAPIClient(cache_service)
 
-    async def get_income_statement(self, code: str) -> dict[str, Any]:
+    async def get_income_statement(self, symbol: str) -> dict[str, Any]:
         """
-        Get comprehensive income statement for a listed company.
-        Automatically detects company industry and uses appropriate format.
+        取得上市公司完整綜合損益表。
+        自動偵測公司所屬產業並使用相應格式。
 
-        Args:
-            code: Company stock code
+        參數：
+            symbol: 公司股票代碼
 
-        Returns:
-            Dictionary containing formatted income statement data
+        回傳：
+            包含格式化損益表資料的字典
         """
         try:
             # Get industry-specific API suffix
-            suffix = await self.api_client.get_industry_api_suffix(code)
+            suffix = await self.api_client.get_industry_api_suffix(symbol)
             endpoint = f"/opendata/t187ap06_L{suffix}"
 
-            logger.info(f"Fetching income statement for {code} using {suffix} format")
+            logger.info(f"Fetching income statement for {symbol} using {suffix} format")
 
             # Fetch data using integrated cache and rate limiting
-            data = await self.api_client.get_company_data(endpoint, code)
+            data = await self.api_client.get_company_data(endpoint, symbol)
 
             if not data:
                 return {
                     "success": False,
-                    "error": f"No income statement data found for {code}",
+                    "error": f"No income statement data found for {symbol}",
                     "data": None,
                 }
 
@@ -60,7 +60,7 @@ class FinancialAnalysisTool:
 
             return {
                 "success": True,
-                "company_code": code,
+                "company_code": symbol,
                 "statement_type": "綜合損益表",
                 "industry_format": suffix,
                 "data": formatted_data,
@@ -68,39 +68,39 @@ class FinancialAnalysisTool:
             }
 
         except Exception as e:
-            logger.error(f"Error fetching income statement for {code}: {e}")
+            logger.error(f"Error fetching income statement for {symbol}: {e}")
             return {
                 "success": False,
                 "error": str(e),
-                "company_code": code,
+                "company_code": symbol,
                 "statement_type": "綜合損益表",
             }
 
-    async def get_balance_sheet(self, code: str) -> dict[str, Any]:
+    async def get_balance_sheet(self, symbol: str) -> dict[str, Any]:
         """
-        Get balance sheet for a listed company.
-        Automatically detects company industry and uses appropriate format.
+        取得上市公司資產負債表。
+        自動偵測公司所屬產業並使用相應格式。
 
-        Args:
-            code: Company stock code
+        參數：
+            symbol: 公司股票代碼
 
-        Returns:
-            Dictionary containing formatted balance sheet data
+        回傳：
+            包含格式化資產負債表資料的字典
         """
         try:
             # Get industry-specific API suffix
-            suffix = await self.api_client.get_industry_api_suffix(code)
+            suffix = await self.api_client.get_industry_api_suffix(symbol)
             endpoint = f"/opendata/t187ap07_L{suffix}"
 
-            logger.info(f"Fetching balance sheet for {code} using {suffix} format")
+            logger.info(f"Fetching balance sheet for {symbol} using {suffix} format")
 
             # Fetch data using integrated cache and rate limiting
-            data = await self.api_client.get_company_data(endpoint, code)
+            data = await self.api_client.get_company_data(endpoint, symbol)
 
             if not data:
                 return {
                     "success": False,
-                    "error": f"No balance sheet data found for {code}",
+                    "error": f"No balance sheet data found for {symbol}",
                     "data": None,
                 }
 
@@ -109,7 +109,7 @@ class FinancialAnalysisTool:
 
             return {
                 "success": True,
-                "company_code": code,
+                "company_code": symbol,
                 "statement_type": "資產負債表",
                 "industry_format": suffix,
                 "data": formatted_data,
@@ -117,58 +117,58 @@ class FinancialAnalysisTool:
             }
 
         except Exception as e:
-            logger.error(f"Error fetching balance sheet for {code}: {e}")
+            logger.error(f"Error fetching balance sheet for {symbol}: {e}")
             return {
                 "success": False,
                 "error": str(e),
-                "company_code": code,
+                "company_code": symbol,
                 "statement_type": "資產負債表",
             }
 
-    async def get_company_profile(self, code: str) -> dict[str, Any]:
+    async def get_company_profile(self, symbol: str) -> dict[str, Any]:
         """
-        Get company basic profile information.
+        取得公司基本資料。
 
-        Args:
-            code: Company stock code
+        參數：
+            symbol: 公司股票代碼
 
-        Returns:
-            Dictionary containing company profile data
+        回傳：
+            包含公司基本資料的字典
         """
         try:
             endpoint = "/opendata/t187ap03_L"
-            data = await self.api_client.get_company_data(endpoint, code)
+            data = await self.api_client.get_company_data(endpoint, symbol)
 
             if not data:
                 return {
                     "success": False,
-                    "error": f"No company profile found for {code}",
+                    "error": f"No company profile found for {symbol}",
                     "data": None,
                 }
 
             return {
                 "success": True,
-                "company_code": code,
+                "company_code": symbol,
                 "data": data,
                 "source": "TWSE OpenAPI",
             }
 
         except Exception as e:
-            logger.error(f"Error fetching company profile for {code}: {e}")
-            return {"success": False, "error": str(e), "company_code": code}
+            logger.error(f"Error fetching company profile for {symbol}: {e}")
+            return {"success": False, "error": str(e), "company_code": symbol}
 
     def _format_financial_data(
         self, data: dict[str, Any], statement_type: str
     ) -> dict[str, Any]:
         """
-        Format financial data for consistent output.
+        格式化財務資料，統一輸出格式。
 
-        Args:
-            data: Raw financial data from API
-            statement_type: Type of financial statement
+        參數：
+            data: 從 API 取得的原始財務資料
+            statement_type: 財務報表類型
 
-        Returns:
-            Formatted financial data
+        回傳：
+            格式化後的財務資料
         """
         try:
             # Extract key financial metrics based on statement type
@@ -184,7 +184,9 @@ class FinancialAnalysisTool:
             return data
 
     def _extract_income_statement_metrics(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Extract key metrics from income statement data."""
+        """
+        從綜合損益表資料中擷取主要指標。
+        """
         return {
             "raw_data": data,
             "key_metrics": {
@@ -196,7 +198,9 @@ class FinancialAnalysisTool:
         }
 
     def _extract_balance_sheet_metrics(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Extract key metrics from balance sheet data."""
+        """
+        從資產負債表資料中擷取主要指標。
+        """
         return {
             "raw_data": data,
             "key_metrics": {
@@ -208,7 +212,9 @@ class FinancialAnalysisTool:
         }
 
     def close(self):
-        """Close the API client."""
+        """
+        關閉 API client。
+        """
         self.api_client.close()
 
     def __enter__(self):
