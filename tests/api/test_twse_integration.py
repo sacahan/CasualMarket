@@ -5,6 +5,7 @@
 """
 
 import asyncio
+import os
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -16,6 +17,30 @@ from src.models.stock_data import APIError, TWStockResponse, ValidationError
 
 class TestTWStockAPIClient:
     """測試台灣證交所 API 客戶端。"""
+
+    @pytest.fixture(autouse=True)
+    def setup_test_environment(self):
+        """設置測試環境，禁用速率限制。"""
+        # Store original values
+        original_rate_limiting = os.environ.get("MARKET_MCP_RATE_LIMITING_ENABLED")
+        original_caching = os.environ.get("MARKET_MCP_CACHING_ENABLED")
+
+        # Disable rate limiting and caching for tests
+        os.environ["MARKET_MCP_RATE_LIMITING_ENABLED"] = "false"
+        os.environ["MARKET_MCP_CACHING_ENABLED"] = "false"
+
+        yield
+
+        # Restore original values
+        if original_rate_limiting is not None:
+            os.environ["MARKET_MCP_RATE_LIMITING_ENABLED"] = original_rate_limiting
+        else:
+            os.environ.pop("MARKET_MCP_RATE_LIMITING_ENABLED", None)
+
+        if original_caching is not None:
+            os.environ["MARKET_MCP_CACHING_ENABLED"] = original_caching
+        else:
+            os.environ.pop("MARKET_MCP_CACHING_ENABLED", None)
 
     @pytest.fixture
     def client(self):
@@ -158,7 +183,9 @@ class TestTWStockAPIClient:
                     last_trade_time="13:00:00",
                 )
 
-            with patch.object(client, 'get_stock_quote', side_effect=mock_get_stock_quote):
+            with patch.object(
+                client, "get_stock_quote", side_effect=mock_get_stock_quote
+            ):
                 # 執行測試
                 symbols = ["2330", "2317", "2454"]
                 results = await client.get_multiple_quotes(symbols)
@@ -191,7 +218,9 @@ class TestTWStockAPIClient:
     @pytest.mark.asyncio
     async def test_check_api_health_failure(self, client):
         """測試 API 健康檢查失敗。"""
-        with patch.object(client, 'get_stock_quote', side_effect=APIError("Mocked API failure")):
+        with patch.object(
+            client, "get_stock_quote", side_effect=APIError("Mocked API failure")
+        ):
             # 執行測試
             is_healthy = await client.check_api_health()
 
@@ -225,7 +254,9 @@ class TestTWStockAPIClient:
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
             # 使用異步內容管理器
-            async with create_client(enable_cache=False, enable_rate_limit=False) as client:
+            async with create_client(
+                enable_cache=False, enable_rate_limit=False
+            ) as client:
                 result = await client.get_stock_quote("2330")
                 assert isinstance(result, TWStockResponse)
 

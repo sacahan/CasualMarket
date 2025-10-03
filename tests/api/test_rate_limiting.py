@@ -25,6 +25,15 @@ class TestRateLimiter:
             per_second_limit=1000,
         )
 
+    @pytest.fixture
+    def per_second_rate_limiter(self):
+        """Rate limiter with per-second limit of 2 for testing per-second functionality."""
+        return RateLimiter(
+            per_stock_interval=0.1,  # 100ms for faster testing
+            global_limit_per_minute=50,  # Higher limit to avoid global conflicts
+            per_second_limit=2,  # Low limit for per-second testing
+        )
+
     @pytest.mark.asyncio
     async def test_per_stock_rate_limiting(self, rate_limiter):
         """Test per-stock rate limiting works correctly."""
@@ -63,22 +72,26 @@ class TestRateLimiter:
         assert "global_limit" in reason
 
     @pytest.mark.asyncio
-    async def test_per_second_rate_limiting(self, rate_limiter):
+    async def test_per_second_rate_limiting(self, per_second_rate_limiter):
         """Test per-second rate limiting."""
         # Make 2 requests quickly (should be allowed)
         for i in range(2):
-            can_request, _, _ = await rate_limiter.can_request(f"fast_stock_{i}")
+            can_request, _, _ = await per_second_rate_limiter.can_request(
+                f"fast_stock_{i}"
+            )
             assert can_request is True
-            await rate_limiter.record_request(f"fast_stock_{i}")
+            await per_second_rate_limiter.record_request(f"fast_stock_{i}")
 
         # Third request in same second should be blocked
-        can_request, reason, wait_time = await rate_limiter.can_request("fast_stock_3")
+        can_request, reason, wait_time = await per_second_rate_limiter.can_request(
+            "fast_stock_3"
+        )
         assert can_request is False
         assert "per_second_limit" in reason
 
-    def test_rate_limiter_stats(self, rate_limiter):
+    def test_rate_limiter_stats(self, per_second_rate_limiter):
         """Test rate limiter statistics."""
-        stats = rate_limiter.get_stats()
+        stats = per_second_rate_limiter.get_stats()
 
         assert "global_requests_last_minute" in stats
         assert "per_second_limit" in stats
@@ -234,8 +247,8 @@ class TestRateLimitedCacheService:
         return config
 
     @pytest.fixture
-    def cache_service(self, config_manager):
-        return RateLimitedCacheService(config_manager)
+    def cache_service(self):
+        return RateLimitedCacheService()
 
     @pytest.mark.asyncio
     async def test_integrated_cache_and_rate_limiting(self, cache_service):
@@ -340,12 +353,13 @@ class TestRateLimitedCacheService:
 @pytest.mark.asyncio
 async def test_full_integration_scenario():
     """Test a complete usage scenario with all components."""
-    # Create service with test configuration
-    config = ConfigManager()
-    config.set("rate_limiting.per_stock_interval_seconds", 0.1)
-    config.set("rate_limiting.global_limit_per_minute", 5)
-    config.set("caching.ttl_seconds", 5.0)
-    service = RateLimitedCacheService(config)
+    # Create service - configuration comes from environment variables
+    import os
+
+    os.environ["MARKET_MCP_RATE_LIMIT_INTERVAL"] = "0.1"
+    os.environ["MARKET_MCP_RATE_LIMIT_GLOBAL_PER_MINUTE"] = "5"
+    os.environ["MARKET_MCP_CACHE_TTL"] = "5"
+    service = RateLimitedCacheService()
 
     # Simulate multiple API requests
     symbols = ["2330", "2317", "0050", "2412", "1234"]

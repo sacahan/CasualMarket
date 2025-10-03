@@ -4,10 +4,10 @@
 """
 
 import logging
+import os
 import time
 from typing import Any
 
-from ..utils.config_manager import ConfigManager
 from .cache_manager import CacheManager
 from .rate_limiter import RateLimiter
 from .request_tracker import RequestTracker
@@ -21,31 +21,63 @@ class RateLimitedCacheService:
     提供受保護 API 存取與智慧型快取的主要介面。
     """
 
-    def __init__(self, config_manager: ConfigManager | None = None):
-        self.config = config_manager or ConfigManager()
-
-        # Initialize components with configuration
-        rate_config = self.config.get_rate_limiting_config()
-        cache_config = self.config.get_caching_config()
-        monitoring_config = self.config.get_monitoring_config()
-
+    def __init__(self):
+        # 從環境變數讀取配置，提供合理的預設值
         self.rate_limiter = RateLimiter(
-            per_stock_interval=rate_config.get("per_stock_interval_seconds", 30.0),
-            global_limit_per_minute=rate_config.get("global_limit_per_minute", 20),
-            per_second_limit=rate_config.get("per_second_limit", 2),
+            per_stock_interval=float(
+                os.getenv("MARKET_MCP_RATE_LIMIT_INTERVAL", "30.0")
+            ),
+            global_limit_per_minute=int(
+                os.getenv("MARKET_MCP_RATE_LIMIT_GLOBAL_PER_MINUTE", "20")
+            ),
+            per_second_limit=int(os.getenv("MARKET_MCP_RATE_LIMIT_PER_SECOND", "2")),
         )
 
         self.cache_manager = CacheManager(
-            ttl_seconds=cache_config.get("ttl_seconds", 30),
-            max_size=cache_config.get("max_size", 1000),
-            max_memory_mb=cache_config.get("max_memory_mb", 200.0),
+            ttl_seconds=int(os.getenv("MARKET_MCP_CACHE_TTL", "30")),
+            max_size=int(os.getenv("MARKET_MCP_CACHE_MAX_SIZE", "1000")),
+            max_memory_mb=float(os.getenv("MARKET_MCP_CACHE_MAX_MEMORY_MB", "200.0")),
         )
 
         self.request_tracker = RequestTracker(
-            stats_retention_hours=monitoring_config.get("stats_retention_hours", 24)
+            stats_retention_hours=int(
+                os.getenv("MARKET_MCP_MONITORING_STATS_RETENTION_HOURS", "24")
+            )
         )
 
         self._is_enabled = True
+
+    def _is_rate_limiting_enabled(self) -> bool:
+        """檢查是否啟用限速功能"""
+        return os.getenv("MARKET_MCP_RATE_LIMITING_ENABLED", "true").lower() == "true"
+
+    def _is_caching_enabled(self) -> bool:
+        """檢查是否啟用快取功能"""
+        return os.getenv("MARKET_MCP_CACHING_ENABLED", "true").lower() == "true"
+
+    def _get_rate_limiting_config(self) -> dict[str, Any]:
+        """取得限速配置"""
+        return {
+            "per_stock_interval_seconds": float(
+                os.getenv("MARKET_MCP_RATE_LIMIT_INTERVAL", "30.0")
+            ),
+            "global_limit_per_minute": int(
+                os.getenv("MARKET_MCP_RATE_LIMIT_GLOBAL_PER_MINUTE", "20")
+            ),
+            "per_second_limit": int(os.getenv("MARKET_MCP_RATE_LIMIT_PER_SECOND", "2")),
+            "enabled": self._is_rate_limiting_enabled(),
+        }
+
+    def _get_caching_config(self) -> dict[str, Any]:
+        """取得快取配置"""
+        return {
+            "ttl_seconds": int(os.getenv("MARKET_MCP_CACHE_TTL", "30")),
+            "max_size": int(os.getenv("MARKET_MCP_CACHE_MAX_SIZE", "1000")),
+            "max_memory_mb": float(
+                os.getenv("MARKET_MCP_CACHE_MAX_MEMORY_MB", "200.0")
+            ),
+            "enabled": self._is_caching_enabled(),
+        }
 
     async def can_make_request(
         self, symbol: str, request_type: str = "quote"
@@ -54,7 +86,7 @@ class RateLimitedCacheService:
         檢查指定股票是否可發送請求。
         回傳 (允許, 原因, 等待秒數)。
         """
-        if not self.config.is_rate_limiting_enabled():
+        if not self._is_rate_limiting_enabled():
             return True, "rate_limiting_disabled", 0.0
 
         return await self.rate_limiter.can_request(symbol)
@@ -74,7 +106,7 @@ class RateLimitedCacheService:
         """
         # Always try cache first
         cached_data = None
-        if self.config.is_caching_enabled():
+        if self._is_caching_enabled():
             cached_data = await self.cache_manager.get_cached_data(symbol, request_type)
 
         # Check rate limits
@@ -117,7 +149,7 @@ class RateLimitedCacheService:
 
             # Cache the response data
             cache_success = True
-            if self.config.is_caching_enabled():
+            if self._is_caching_enabled():
                 cache_success = await self.cache_manager.set_cached_data(
                     symbol, response_data, request_type
                 )
@@ -194,8 +226,8 @@ class RateLimitedCacheService:
             return {
                 "service_status": {
                     "enabled": self._is_enabled,
-                    "rate_limiting_enabled": self.config.is_rate_limiting_enabled(),
-                    "caching_enabled": self.config.is_caching_enabled(),
+                    "rate_limiting_enabled": self._is_rate_limiting_enabled(),
+                    "caching_enabled": self._is_caching_enabled(),
                 },
                 "rate_limiter": self.rate_limiter.get_stats(),
                 "cache_manager": self.cache_manager.get_cache_stats(),
@@ -209,8 +241,8 @@ class RateLimitedCacheService:
                     "issues": self.cache_manager.is_cache_healthy()[1],
                 },
                 "configuration": {
-                    "rate_limiting": self.config.get_rate_limiting_config(),
-                    "caching": self.config.get_caching_config(),
+                    "rate_limiting": self._get_rate_limiting_config(),
+                    "caching": self._get_caching_config(),
                 },
             }
         except Exception as e:
@@ -283,8 +315,8 @@ class RateLimitedCacheService:
                 )
 
             # Check cache hit rate
-            target_hit_rate = self.config.get(
-                "monitoring.cache_hit_rate_target_percent", 80.0
+            target_hit_rate = float(
+                os.getenv("MARKET_MCP_MONITORING_CACHE_HIT_RATE_TARGET", "80.0")
             )
             if (
                 global_stats["cache_hit_rate_percent"] < target_hit_rate
@@ -336,7 +368,7 @@ class RateLimitedCacheService:
         """
         手動使指定股票的快取失效。
         """
-        if self.config.is_caching_enabled():
+        if self._is_caching_enabled():
             return await self.cache_manager.invalidate(symbol, request_type)
         return True
 
@@ -344,7 +376,7 @@ class RateLimitedCacheService:
         """
         清除所有快取資料。
         """
-        if self.config.is_caching_enabled():
+        if self._is_caching_enabled():
             await self.cache_manager.clear_all()
 
     async def reset_rate_limits(self) -> None:

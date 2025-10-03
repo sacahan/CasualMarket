@@ -73,7 +73,7 @@ class OpenAPIClient:
             logger.error(f"請求失敗: {url} - {type(e).__name__}: {e}")
             raise Exception(f"取得資料失敗: {e}") from e
 
-    @with_cache(enable_rate_limit=False, cache_key_prefix="company_data")
+    @with_cache(enable_rate_limit=False)
     async def get_company_data(
         self, endpoint: str, symbol: str
     ) -> dict[str, Any] | None:
@@ -135,7 +135,7 @@ class OpenAPIClient:
             logger.error(f"取得最新市場資料失敗: {e}")
             return []
 
-    @with_cache("industry_profile", enable_rate_limit=False)
+    @with_cache(enable_rate_limit=False)
     async def get_industry_api_suffix(self, symbol: str) -> str:
         """
         根據公司產業別取得適當的 API 後綴。

@@ -136,10 +136,51 @@ uv run python tests/api/debug_api.py
 
 ### Environment Variables
 
-- `MARKET_MCP_API_TIMEOUT`: API request timeout (default: 10s)
-- `MARKET_MCP_API_RETRIES`: Retry attempts (default: 5)
-- `MARKET_MCP_TWSE_API_URL`: TWSE API endpoint URL
-- `LOG_LEVEL`: Logging level (INFO, DEBUG, ERROR)
+所有配置都通過環境變數管理，支援 `.env` 文件。配置分為以下幾個類別：
+
+#### API 客戶端配置
+
+- `MARKET_MCP_API_TIMEOUT`: API 請求超時時間秒數 (預設: 10)
+- `MARKET_MCP_API_RETRIES`: API 請求重試次數 (預設: 5)
+- `MARKET_MCP_TWSE_API_URL`: 台灣證交所 API 端點 URL
+
+#### 限速配置
+
+- `MARKET_MCP_RATE_LIMIT_INTERVAL`: 每個股票請求間隔秒數 (預設: 30.0)
+- `MARKET_MCP_RATE_LIMIT_GLOBAL_PER_MINUTE`: 全域每分鐘請求限制 (預設: 20)
+- `MARKET_MCP_RATE_LIMIT_PER_SECOND`: 每秒請求限制 (預設: 2)
+- `MARKET_MCP_RATE_LIMITING_ENABLED`: 是否啟用限速功能 (預設: true)
+
+#### 快取配置
+
+- `MARKET_MCP_CACHE_TTL`: 快取存活時間秒數 (預設: 30)
+- `MARKET_MCP_CACHE_MAX_SIZE`: 快取最大條目數 (預設: 1000)
+- `MARKET_MCP_CACHE_MAX_MEMORY_MB`: 快取最大記憶體使用 MB (預設: 200.0)
+- `MARKET_MCP_CACHING_ENABLED`: 是否啟用快取功能 (預設: true)
+
+#### 監控配置
+
+- `MARKET_MCP_MONITORING_STATS_RETENTION_HOURS`: 統計資料保留小時數 (預設: 24)
+- `MARKET_MCP_MONITORING_CACHE_HIT_RATE_TARGET`: 快取命中率目標百分比 (預設: 80.0)
+
+#### 日誌配置
+
+- `MARKET_MCP_LOG_LEVEL`: 日誌級別 DEBUG/INFO/WARNING/ERROR (預設: INFO)
+- `MARKET_MCP_LOG_FORMAT`: 日誌格式 (可選)
+- `MARKET_MCP_LOG_FILE`: 日誌文件路徑 (可選)
+
+### 配置文件
+
+**設定方式**：
+
+1. 複製範本：`cp .env.simple .env`
+2. 修改 `.env` 中的值
+3. `.env` 文件不會被 git 追蹤，可安全存放敏感資訊
+
+**檔案說明**：
+
+- `.env`: 實際配置文件（不被 git 追蹤）
+- `.env.simple`: 配置範本文件（被 git 追蹤，不含敏感資訊）
 
 ### MCP Client Configuration
 

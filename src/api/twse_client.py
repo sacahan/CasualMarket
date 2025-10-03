@@ -26,7 +26,7 @@ from ..parsers.twse_parser import create_parser
 from ..securities_db import get_securities_database
 from ..utils.logging import get_logger
 from ..utils.validators import determine_market_type, validate_taiwan_stock_symbol
-from .decorators import with_cache
+from .decorators import with_rate_limit
 
 # 設置日誌
 logger = get_logger(__name__)
@@ -72,11 +72,6 @@ class TWStockAPIClient:
 
         logger.debug("TWStockAPIClient 初始化完成")
 
-from .decorators import (
-    _get_cache_service,
-    _parse_cached_response,
-    _prepare_for_cache,
-)
 
 # 設置日誌
 logger = get_logger(__name__)
@@ -122,51 +117,27 @@ class TWStockAPIClient:
 
         logger.debug("TWStockAPIClient 初始化完成")
 
+    @with_rate_limit()  # 使用環境變數配置
     async def get_stock_quote(
-        self, symbol: str, market: str | None = None, force_refresh: bool = False
+        self, symbol: str, market: str | None = None
     ) -> TWStockResponse:
         """
-        取得單一股票即時報價。
+        取得單一股票即時報價（30秒限速間隔，不使用快取）。
+
+        每個股票代號限制 30 秒只能查詢一次，確保即時性同時避免過度請求。
+        如需調整限速間隔，可修改裝飾器的 interval_seconds 參數。
 
         Args:
             symbol: 股票代號或公司名稱
             market: 市場類型 ('tse' 或 'otc')，如果未指定會自動判斷
-            force_refresh: 是否強制刷新快取
 
         Returns:
             TWStockResponse: 股票報價資料
 
         Raises:
             ValidationError: 股票代號格式不正確或找不到該股票
-            APIError: API 請求失敗
+            APIError: API 請求失敗或受限速保護
         """
-        cache_key_prefix = "quote"
-        start_time = time.time()
-
-        if self.enable_cache:
-            cache_service = _get_cache_service()
-            if force_refresh:
-                await cache_service.invalidate_symbol_cache(symbol, cache_key_prefix)
-
-            if self.enable_rate_limit:
-                cached_data, _, message = await cache_service.get_cached_or_wait(
-                    symbol, cache_key_prefix
-                )
-
-                if cached_data:
-                    response_time = (time.time() - start_time) * 1000
-                    await cache_service.record_cached_response(symbol, cache_key_prefix)
-                    return _parse_cached_response(cached_data["data"])
-
-                if "cache_miss_can_make_request" not in message:
-                    raise APIError(f"股票 {symbol} 受流量限制: {message}")
-            else:
-                cached_data = await cache_service.cache_manager.get_cached_data(
-                    symbol, cache_key_prefix
-                )
-                if cached_data and not force_refresh:
-                    return _parse_cached_response(cached_data["data"])
-
         logger.info(f"開始查詢股票報價: {symbol}")
 
         # 嘗試使用資料庫解析股票代碼或公司名稱
@@ -227,15 +198,6 @@ class TWStockAPIClient:
                 f"成功取得股票報價: {resolved_symbol} ({stock_data.company_name}) = ${stock_data.current_price}"
             )
 
-            if self.enable_cache:
-                cache_service = _get_cache_service()
-                result_dict = _prepare_for_cache(stock_data)
-                if result_dict:
-                    response_time = (time.time() - start_time) * 1000
-                    await cache_service.record_successful_request(
-                        symbol, result_dict, response_time, cache_key_prefix
-                    )
-
             return stock_data
 
         except (ValidationError, APIError):
@@ -247,7 +209,7 @@ class TWStockAPIClient:
 
     async def get_multiple_quotes(self, symbols: list[str]) -> list[TWStockResponse]:
         """
-        取得多支股票的即時報價。
+        取得多支股票的即時報價（每個股票都會受到限速控制）。
 
         Args:
             symbols: 股票代號清單
@@ -262,7 +224,7 @@ class TWStockAPIClient:
             task = self.get_stock_quote(symbol)
             tasks.append(task)
 
-        # 並行處理多個請求
+        # 並行處理多個請求（每個 get_stock_quote 都有自己的限速控制）
         logger.debug(f"開始並行處理 {len(tasks)} 個查詢任務")
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -461,7 +423,7 @@ class TWStockAPIClient:
 
 
 def create_client(
-    enable_cache: bool = True,
+    enable_cache: bool = False,
     enable_rate_limit: bool = True,
 ) -> TWStockAPIClient:
     """
@@ -477,7 +439,9 @@ def create_client(
     logger.debug(
         f"建立 TWStockAPIClient 實例 (快取: {enable_cache}, 速率限制: {enable_rate_limit})"
     )
-    return TWStockAPIClient(enable_cache=enable_cache, enable_rate_limit=enable_rate_limit)
+    return TWStockAPIClient(
+        enable_cache=enable_cache, enable_rate_limit=enable_rate_limit
+    )
 
 
 # 增加 main 函式以便直接執行測試

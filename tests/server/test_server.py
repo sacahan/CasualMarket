@@ -9,7 +9,7 @@ import pytest
 from unittest.mock import patch, AsyncMock
 
 # Import the mcp instance and the tool functions directly from src.server
-from src.server import mcp
+from src.server import mcp, get_taiwan_stock_price, buy_taiwan_stock, sell_taiwan_stock
 
 
 class TestFastMCPServer:
@@ -18,8 +18,12 @@ class TestFastMCPServer:
     @pytest.fixture(autouse=True)
     def mock_tool_dependencies(self):
         """Mock external dependencies for tools."""
-        with patch("src.api.twse_client.create_client", return_value=AsyncMock()) as mock_create_client, \
-             patch("src.securities_db.SecuritiesDatabase") as mock_securities_db:
+        with (
+            patch(
+                "src.api.twse_client.create_client", return_value=AsyncMock()
+            ) as mock_create_client,
+            patch("src.securities_db.SecuritiesDatabase") as mock_securities_db,
+        ):
             # Mock the stock_client for StockPriceTool and StockTradingTool
             mock_stock_client = AsyncMock()
             mock_stock_client.get_stock_quote.return_value = AsyncMock(
@@ -64,7 +68,7 @@ class TestFastMCPServer:
     async def test_tool_registration(self):
         """Test that expected tools are registered."""
         registered_tool_names = {tool for tool in await mcp.get_tools()}
-        
+
         expected_tools = {
             "get_taiwan_stock_price",
             "buy_taiwan_stock",
@@ -88,7 +92,7 @@ class TestFastMCPServer:
             "get_foreign_investment_by_industry",
             "get_top_foreign_holdings",
         }
-        
+
         # Check if all expected tools are present
         missing_tools = expected_tools - registered_tool_names
         extra_tools = registered_tool_names - expected_tools
@@ -99,29 +103,31 @@ class TestFastMCPServer:
     @pytest.mark.asyncio
     async def test_get_taiwan_stock_price_functionality(self):
         """Test the functionality of get_taiwan_stock_price tool."""
-        result = await mcp.call("get_taiwan_stock_price", symbol="2330")
-        assert isinstance(result, dict)
-        assert result["status"] == "success"
-        assert result["data"]["symbol"] == "2330"
-        assert result["data"]["name"] == "台積電"
-        assert result["data"]["price"] == 500.0
+        result = await get_taiwan_stock_price(symbol="2330")
+        assert isinstance(result, list)
+        assert len(result) > 0
+        assert result[0]["type"] == "text"
+        assert "台積電" in result[0]["text"]
+        assert "500.0" in result[0]["text"]
 
     @pytest.mark.asyncio
     async def test_buy_taiwan_stock_functionality(self):
         """Test the functionality of buy_taiwan_stock tool."""
         # Assuming a successful buy scenario with price matching ask_prices
-        result = await mcp.call("buy_taiwan_stock", symbol="2330", quantity=1000, price=500.0)
-        assert isinstance(result, dict)
-        assert result["type"] == "text"
-        assert "交易成功" in result["text"]
-        assert "500.0" in result["text"]
+        result = await buy_taiwan_stock(symbol="2330", quantity=1000, price=500.0)
+        assert isinstance(result, list)
+        assert len(result) > 0
+        assert result[0]["type"] == "text"
+        assert "交易成功" in result[0]["text"]
+        assert "500.0" in result[0]["text"]
 
     @pytest.mark.asyncio
     async def test_sell_taiwan_stock_functionality(self):
         """Test the functionality of sell_taiwan_stock tool."""
         # Assuming a successful sell scenario with price matching bid_prices
-        result = await mcp.call("sell_taiwan_stock", symbol="2330", quantity=1000, price=499.5)
-        assert isinstance(result, dict)
-        assert result["type"] == "text"
-        assert "交易成功" in result["text"]
-        assert "499.5" in result["text"]
+        result = await sell_taiwan_stock(symbol="2330", quantity=1000, price=499.5)
+        assert isinstance(result, list)
+        assert len(result) > 0
+        assert result[0]["type"] == "text"
+        assert "交易成功" in result[0]["text"]
+        assert "499.5" in result[0]["text"]
