@@ -81,11 +81,36 @@ async def get_taiwan_stock_price(symbol: str):
     - 股票代碼: 4-6位數字 + 可選字母 (例如: 2330, 0050, 00648R)
     - 公司名稱: 完整或部分公司名稱 (例如: "台積電", "鴻海")
 
+    使用範例:
+        get_taiwan_stock_price("2330")      # 使用股票代碼
+        get_taiwan_stock_price("台積電")     # 使用公司名稱
+        get_taiwan_stock_price("0050")      # 查詢ETF
+
     Args:
         symbol: 台灣股票代號或公司名稱
 
     Returns:
-        包含股票價格資訊的字典
+        MCPToolResponse[StockPriceData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (StockPriceData): 股票價格資訊，包含：
+          * symbol: 股票代碼
+          * company_name: 公司名稱
+          * current_price: 當前價格
+          * change: 漲跌金額
+          * change_percent: 漲跌幅百分比
+          * volume: 成交量
+          * high/low/open: 最高/最低/開盤價
+          * previous_close: 昨收價
+          * last_update: 最後更新時間
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+        - timestamp: 回應時間戳
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 股票代碼不存在
+        - 網路連線問題
+        - API 服務異常
     """
     return await stock_price_tool.safe_execute(symbol=symbol)
 
@@ -95,13 +120,40 @@ async def buy_taiwan_stock(symbol: str, quantity: int, price: float | None = Non
     """
     模擬台灣股票買入操作。
 
+    執行模擬的股票買入交易，計算手續費、交易稅等費用。
+    注意：台股最小交易單位為1000股（1張）。
+
+    使用範例:
+        buy_taiwan_stock("2330", 1000)              # 市價買入1張台積電
+        buy_taiwan_stock("2330", 2000, 510.0)       # 限價510元買入2張台積電
+
     Args:
-        symbol: 股票代碼
-        quantity: 購買股數 (台股最小單位為1000股)
+        symbol: 股票代碼 (例如: "2330")
+        quantity: 購買股數，必須是1000的倍數 (台股最小單位為1000股)
         price: 指定價格 (可選，不指定則為市價)
 
     Returns:
-        交易結果資訊
+        MCPToolResponse[TradingResultData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (TradingResultData): 交易結果資訊，包含：
+          * symbol: 股票代碼
+          * action: 交易動作 ("buy")
+          * quantity: 交易股數
+          * price: 成交價格
+          * total_amount: 交易總金額
+          * fee: 手續費
+          * tax: 交易稅
+          * net_amount: 實際支付金額
+          * timestamp: 交易時間
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        交易失敗時返回錯誤回應，可能的原因：
+        - 股票代碼不存在
+        - 交易股數不符合規定（非1000的倍數）
+        - 指定價格超出漲跌停限制
+        - 模擬交易系統異常
     """
     return await stock_trading_tool.buy(symbol=symbol, quantity=quantity, price=price)
 
@@ -111,13 +163,40 @@ async def sell_taiwan_stock(symbol: str, quantity: int, price: float | None = No
     """
     模擬台灣股票賣出操作。
 
+    執行模擬的股票賣出交易，計算手續費、證券交易稅等費用。
+    注意：台股最小交易單位為1000股（1張），賣出時需扣除0.3%證券交易稅。
+
+    使用範例:
+        sell_taiwan_stock("2330", 1000)             # 市價賣出1張台積電
+        sell_taiwan_stock("2330", 1000, 530.0)      # 限價530元賣出1張台積電
+
     Args:
-        symbol: 股票代碼
-        quantity: 賣出股數 (台股最小單位為1000股)
+        symbol: 股票代碼 (例如: "2330")
+        quantity: 賣出股數，必須是1000的倍數 (台股最小單位為1000股)
         price: 指定價格 (可選，不指定則為市價)
 
     Returns:
-        交易結果資訊
+        MCPToolResponse[TradingResultData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (TradingResultData): 交易結果資訊，包含：
+          * symbol: 股票代碼
+          * action: 交易動作 ("sell")
+          * quantity: 交易股數
+          * price: 成交價格
+          * total_amount: 交易總金額
+          * fee: 手續費
+          * tax: 證券交易稅（0.3%）
+          * net_amount: 實際收入金額
+          * timestamp: 交易時間
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        交易失敗時返回錯誤回應，可能的原因：
+        - 股票代碼不存在
+        - 交易股數不符合規定（非1000的倍數）
+        - 指定價格超出漲跌停限制
+        - 模擬交易系統異常
     """
     return await stock_trading_tool.sell(symbol=symbol, quantity=quantity, price=price)
 
@@ -125,13 +204,37 @@ async def sell_taiwan_stock(symbol: str, quantity: int, price: float | None = No
 @mcp.tool
 async def get_stock_daily_trading(symbol: str):
     """
-    取得股票日交易資訊。
+    取得股票日交易統計資訊。
+
+    提供指定股票當日的詳細交易統計，包括成交量、成交金額、
+    委買委賣資訊等交易面數據。
+
+    使用範例:
+        get_stock_daily_trading("2330")       # 查詢台積電日交易資訊
+        get_stock_daily_trading("0050")       # 查詢0050 ETF日交易資訊
 
     Args:
-        symbol: 股票代碼
+        symbol: 股票代碼 (例如: "2330")
 
     Returns:
-        包含日交易資訊的字典
+        MCPToolResponse[dict]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (dict): 日交易統計資訊，包含：
+          * trading_date: 交易日期
+          * total_volume: 總成交量
+          * total_value: 總成交金額
+          * transaction_count: 成交筆數
+          * average_price: 平均成交價
+          * bid_ask_spread: 買賣價差
+          * market_cap: 市值
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 股票代碼不存在
+        - 非交易日或市場尚未開盤
+        - 資料來源暫時無法存取
     """
     return await daily_trading_tool.safe_execute(symbol=symbol)
 
@@ -144,14 +247,48 @@ async def get_company_income_statement(symbol: str):
     """
     取得上市公司綜合損益表。
 
-    自動偵測公司所屬行業並使用相應的財務報表格式：
-    - 一般業、金融業、證券期貨業、金控業、保險業、異業
+    自動偵測公司所屬行業並使用相應的財務報表格式。
+    支援不同行業的特殊會計科目和計算方式。
+
+    支援行業別：
+    - 一般業：製造業、科技業等傳統產業
+    - 金融業：銀行、證券、期貨等金融機構
+    - 金控業：金融控股公司
+    - 保險業：壽險、產險等保險公司
+    - 異業：其他特殊行業
+
+    使用範例:
+        get_company_income_statement("2330")     # 查詢台積電（一般業）
+        get_company_income_statement("2884")     # 查詢玉山金（金控業）
+        get_company_income_statement("2886")     # 查詢兆豐金（金控業）
 
     Args:
-        symbol: 公司股票代碼
+        symbol: 公司股票代碼 (例如: "2330")
 
     Returns:
-        包含綜合損益表資訊的字典
+        MCPToolResponse[dict]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (dict): 綜合損益表資訊，包含：
+          * report_period: 報告期間
+          * revenue: 營業收入
+          * operating_cost: 營業成本
+          * gross_profit: 毛利
+          * operating_expense: 營業費用
+          * operating_income: 營業利益
+          * non_operating_income: 營業外收入
+          * pre_tax_income: 稅前淨利
+          * net_income: 稅後淨利
+          * eps: 每股盈餘
+          * industry_specific_items: 行業特有科目
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 公司代碼不存在
+        - 財報資料尚未公布
+        - OpenAPI 服務異常
+        - 行業別偵測失敗
     """
     return await financial_statements_tool.get_income_statement(symbol)
 
@@ -161,14 +298,38 @@ async def get_company_balance_sheet(symbol: str):
     """
     取得上市公司資產負債表。
 
-    自動偵測公司所屬行業並使用相應的財務報表格式：
-    - 一般業、金融業、證券期貨業、金控業、保險業、異業
+    自動偵測公司所屬行業並使用相應的財務報表格式。
+    不同行業的資產負債表科目會有所不同，系統會自動適配。
+
+    使用範例:
+        get_company_balance_sheet("2330")      # 查詢台積電資產負債表
+        get_company_balance_sheet("2884")      # 查詢玉山金資產負債表
 
     Args:
-        symbol: 公司股票代碼
+        symbol: 公司股票代碼 (例如: "2330")
 
     Returns:
-        包含資產負債表資訊的字典
+        MCPToolResponse[dict]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (dict): 資產負債表資訊，包含：
+          * report_period: 報告期間
+          * total_assets: 總資產
+          * current_assets: 流動資產
+          * non_current_assets: 非流動資產
+          * total_liabilities: 總負債
+          * current_liabilities: 流動負債
+          * non_current_liabilities: 非流動負債
+          * equity: 股東權益
+          * book_value_per_share: 每股淨值
+          * debt_to_equity_ratio: 負債權益比
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 公司代碼不存在
+        - 財報資料尚未公布
+        - OpenAPI 服務異常
     """
     return await financial_statements_tool.get_balance_sheet(symbol)
 
@@ -178,11 +339,36 @@ async def get_company_profile(symbol: str):
     """
     取得上市公司基本資訊。
 
+    提供公司的基本概況，包括公司名稱、行業別、董事長、
+    成立日期、實收資本額、員工人數等基本資料。
+
+    使用範例:
+        get_company_profile("2330")         # 查詢台積電基本資訊
+        get_company_profile("2317")         # 查詢鴻海基本資訊
+
     Args:
-        symbol: 公司股票代碼
+        symbol: 公司股票代碼 (例如: "2330")
 
     Returns:
-        包含公司基本資訊的字典
+        MCPToolResponse[CompanyProfileData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (CompanyProfileData): 公司基本資訊，包含：
+          * symbol: 股票代碼
+          * company_name: 公司全名
+          * industry: 所屬行業
+          * chairman: 董事長姓名
+          * established: 成立日期
+          * capital: 實收資本額
+          * employees: 員工人數
+          * website: 公司官網
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 公司代碼不存在或已下市
+        - 資料來源暫時無法存取
+        - 公司資訊尚未更新
     """
     return await company_profile_tool.safe_execute(symbol=symbol)
 
@@ -192,11 +378,37 @@ async def get_company_dividend(symbol: str):
     """
     取得公司股利分配資訊。
 
+    提供公司歷年股利分配記錄，包括現金股利、股票股利、
+    除息日期、發放日期等完整股利資訊。
+
+    使用範例:
+        get_company_dividend("2330")        # 查詢台積電股利資訊
+        get_company_dividend("0050")        # 查詢0050 ETF配息資訊
+
     Args:
-        symbol: 公司股票代碼
+        symbol: 公司股票代碼 (例如: "2330")
 
     Returns:
-        包含股利分配資訊的字典
+        MCPToolResponse[DividendData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (DividendData): 股利分配資訊，包含：
+          * symbol: 股票代碼
+          * dividend_history: 歷年股利列表，每項包含：
+            - year: 配息年度
+            - cash_dividend: 現金股利
+            - stock_dividend: 股票股利
+            - total_dividend: 總股利
+            - dividend_yield: 殖利率
+            - ex_dividend_date: 除息日
+            - payment_date: 發放日
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 公司代碼不存在
+        - 尚無股利分配記錄
+        - 資料來源暫時無法存取
     """
     return await dividend_tool.safe_execute(symbol=symbol)
 
@@ -206,11 +418,35 @@ async def get_company_monthly_revenue(symbol: str):
     """
     取得公司月營收資訊。
 
+    提供公司每月營收數據，包括當月營收、年增率、月增率等，
+    是觀察公司營運狀況的重要指標。
+
+    使用範例:
+        get_company_monthly_revenue("2330")    # 查詢台積電月營收
+        get_company_monthly_revenue("2454")    # 查詢聯發科月營收
+
     Args:
-        symbol: 公司股票代碼
+        symbol: 公司股票代碼 (例如: "2330")
 
     Returns:
-        包含月營收資訊的字典
+        MCPToolResponse[MonthlyRevenueData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (MonthlyRevenueData): 月營收資訊，包含：
+          * symbol: 股票代碼
+          * revenue_data: 月營收列表，每項包含：
+            - year_month: 年月 (YYYY-MM)
+            - revenue: 當月營收
+            - monthly_growth: 月增率 (%)
+            - yearly_growth: 年增率 (%)
+            - cumulative_revenue: 累計營收
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 公司代碼不存在
+        - 月營收資料尚未公布
+        - 資料來源暫時無法存取
     """
     return await revenue_tool.safe_execute(symbol=symbol)
 
@@ -218,13 +454,37 @@ async def get_company_monthly_revenue(symbol: str):
 @mcp.tool
 async def get_stock_valuation_ratios(symbol: str):
     """
-    取得股票估值比率 (P/E, P/B, 殖利率)。
+    取得股票估值比率分析。
+
+    提供股票的關鍵估值指標，包括本益比、股價淨值比、殖利率等，
+    幫助投資人評估股票的投資價值。
+
+    使用範例:
+        get_stock_valuation_ratios("2330")    # 查詢台積電估值比率
+        get_stock_valuation_ratios("2454")    # 查詢聯發科估值比率
 
     Args:
-        symbol: 股票代碼
+        symbol: 股票代碼 (例如: "2330")
 
     Returns:
-        包含估值比率的字典
+        MCPToolResponse[ValuationRatiosData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (ValuationRatiosData): 估值比率資訊，包含：
+          * symbol: 股票代碼
+          * pe_ratio: 本益比 (Price-to-Earnings)
+          * pb_ratio: 股價淨值比 (Price-to-Book)
+          * dividend_yield: 殖利率
+          * roe: 股東權益報酬率
+          * eps: 每股盈餘
+          * book_value: 每股淨值
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 股票代碼不存在
+        - 財務數據不完整
+        - 計算數據暫時無法取得
     """
     return await valuation_tool.safe_execute(symbol=symbol)
 
@@ -234,11 +494,36 @@ async def get_dividend_rights_schedule(symbol: str = ""):
     """
     取得除權息行事曆。
 
+    提供上市公司的除權息相關日期資訊，包括除權息交易日、
+    停止過戶日、股東會日期等重要時程。
+
+    使用範例:
+        get_dividend_rights_schedule()          # 查詢所有公司除權息行事曆
+        get_dividend_rights_schedule("2330")    # 查詢台積電除權息行事曆
+        get_dividend_rights_schedule("0050")    # 查詢0050除權息行事曆
+
     Args:
-        symbol: 股票代碼 (可選，空字串則查詢全部)
+        symbol: 股票代碼 (可選，空字串或不提供則查詢全部)
 
     Returns:
-        包含除權息行事曆的字典
+        MCPToolResponse[DividendScheduleData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data: 除權息行事曆資訊列表，每項包含：
+          * symbol: 股票代碼
+          * company_name: 公司名稱
+          * ex_dividend_date: 除權息交易日
+          * cash_dividend: 現金股利
+          * stock_dividend: 股票股利
+          * record_date: 停止過戶日
+          * payment_date: 發放日
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 指定的股票代碼不存在
+        - 尚無除權息資料
+        - 資料來源暫時無法存取
     """
     return await dividend_schedule_tool.safe_execute(symbol=symbol)
 
@@ -251,11 +536,37 @@ async def get_stock_monthly_trading(symbol: str):
     """
     取得股票月交易資訊。
 
+    提供股票每月的交易統計資料，包括月成交量、月成交金額、
+    月均價、最高最低價等，適合中長期趨勢分析。
+
+    使用範例:
+        get_stock_monthly_trading("2330")     # 查詢台積電月交易資訊
+        get_stock_monthly_trading("0050")     # 查詢0050月交易資訊
+
     Args:
-        symbol: 股票代碼
+        symbol: 股票代碼 (例如: "2330")
 
     Returns:
-        包含月交易資訊的字典
+        MCPToolResponse[MonthlyTradingData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (MonthlyTradingData): 月交易資訊，包含：
+          * symbol: 股票代碼
+          * monthly_data: 月交易列表，每項包含：
+            - year_month: 年月 (YYYY-MM)
+            - total_volume: 月成交量
+            - total_value: 月成交金額
+            - average_price: 月均價
+            - highest_price: 月最高價
+            - lowest_price: 月最低價
+            - trading_days: 交易日數
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 股票代碼不存在
+        - 月交易資料尚未彙整
+        - 資料來源暫時無法存取
     """
     return await trading_statistics_tool.get_monthly_trading(symbol)
 
@@ -265,11 +576,38 @@ async def get_stock_yearly_trading(symbol: str):
     """
     取得股票年交易資訊。
 
+    提供股票每年的交易統計資料，包括年成交量、年成交金額、
+    年均價、年度漲跌幅等，適合長期投資分析與歷史回顧。
+
+    使用範例:
+        get_stock_yearly_trading("2330")      # 查詢台積電年交易資訊
+        get_stock_yearly_trading("2454")      # 查詢聯發科年交易資訊
+
     Args:
-        symbol: 股票代碼
+        symbol: 股票代碼 (例如: "2330")
 
     Returns:
-        包含年交易資訊的字典
+        MCPToolResponse[YearlyTradingData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (YearlyTradingData): 年交易資訊，包含：
+          * symbol: 股票代碼
+          * yearly_data: 年交易列表，每項包含：
+            - year: 年度
+            - total_volume: 年成交量
+            - total_value: 年成交金額
+            - average_price: 年均價
+            - highest_price: 年最高價
+            - lowest_price: 年最低價
+            - trading_days: 交易日數
+            - year_change_percent: 年度漲跌幅 (%)
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 股票代碼不存在
+        - 年交易資料尚未彙整
+        - 資料來源暫時無法存取
     """
     return await trading_statistics_tool.get_yearly_trading(symbol)
 
@@ -279,11 +617,37 @@ async def get_stock_monthly_average(symbol: str):
     """
     取得股票月平均價格。
 
+    計算股票每月的平均成交價格，可用於觀察價格趨勢、
+    技術分析參考，以及定期定額投資績效評估。
+
+    使用範例:
+        get_stock_monthly_average("2330")     # 查詢台積電月均價
+        get_stock_monthly_average("0050")     # 查詢0050月均價
+
     Args:
-        symbol: 股票代碼
+        symbol: 股票代碼 (例如: "2330")
 
     Returns:
-        包含月平均價格的字典
+        MCPToolResponse[MonthlyAverageData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (MonthlyAverageData): 月平均價格資訊，包含：
+          * symbol: 股票代碼
+          * monthly_averages: 月平均列表，每項包含：
+            - year_month: 年月 (YYYY-MM)
+            - average_price: 月平均成交價
+            - weighted_average: 加權平均價
+            - median_price: 中位數價格
+            - volume_weighted_price: 成交量加權價
+            - trading_days: 交易日數
+            - monthly_change: 月變化百分比
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 股票代碼不存在
+        - 月均價資料尚未計算
+        - 資料來源暫時無法存取
     """
     return await trading_statistics_tool.get_monthly_average(symbol)
 
@@ -293,19 +657,126 @@ async def get_stock_monthly_average(symbol: str):
 
 @mcp.tool
 async def get_margin_trading_info():
-    """取得融資融券資訊。"""
+    """
+    取得融資融券資訊。
+
+    提供市場整體及個股的融資融券統計資料，包括融資餘額、
+    融券餘額、資券相抵等，可用於觀察市場籌碼面變化。
+
+    使用範例:
+        get_margin_trading_info()             # 查詢融資融券資訊
+
+    Args:
+        無參數
+
+    Returns:
+        MCPToolResponse[MarginTradingData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (MarginTradingData): 融資融券資訊，包含：
+          * trading_date: 資料日期
+          * financing: 融資資訊
+            - balance: 融資餘額 (億元)
+            - daily_buy: 今日融資買進
+            - daily_sell: 今日融資賣出
+            - net_change: 淨變化
+            - utilization_rate: 使用率 (%)
+          * securities_lending: 融券資訊
+            - balance: 融券餘額 (億元)
+            - daily_lend: 今日融券借出
+            - daily_return: 今日融券返還
+            - net_change: 淨變化
+            - utilization_rate: 使用率 (%)
+          * margin_trading_summary: 整體摘要
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 非交易日無資料
+        - 資料來源暫時無法存取
+        - 服務暫時異常
+    """
     return await margin_trading_tool.safe_execute()
 
 
 @mcp.tool
 async def get_real_time_trading_stats():
-    """取得即時交易統計資訊（5分鐘資料）。"""
+    """
+    取得即時交易統計資訊。
+
+    提供市場即時交易狀態，包括當盤成交量、成交金額、
+    漲跌家數分布等，資料每5分鐘更新一次。
+
+    使用範例:
+        get_real_time_trading_stats()         # 查詢即時交易統計
+
+    Args:
+        無參數
+
+    Returns:
+        MCPToolResponse[TradingStatsData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (TradingStatsData): 即時交易統計資訊，包含：
+          * update_time: 資料更新時間
+          * market_status: 市場狀態
+          * total_volume: 總成交量 (億股)
+          * total_value: 總成交金額 (億元)
+          * transaction_count: 總成交筆數
+          * advancing_stocks: 上漲家數
+          * declining_stocks: 下跌家數
+          * unchanged_stocks: 平盤家數
+          * limit_up_stocks: 漲停家數
+          * limit_down_stocks: 跌停家數
+          * top_gainers: 漲幅前幾名列表
+          * top_losers: 跌幅前幾名列表
+          * active_stocks: 成交量前幾名列表
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 非交易時段
+        - 資料來源暫時無法存取
+        - 服務暫時異常
+    """
     return await trading_stats_tool.safe_execute()
 
 
 @mcp.tool
 async def get_etf_regular_investment_ranking():
-    """取得ETF定期定額排名資訊（前10名）。"""
+    """
+    取得ETF定期定額排名資訊。
+
+    提供ETF定期定額投資人數排名，反映一般投資人偏好的ETF標的，
+    可作為ETF投資參考指標，資料顯示前10名熱門標的。
+
+    使用範例:
+        get_etf_regular_investment_ranking()  # 查詢ETF定期定額排名
+
+    Args:
+        無參數
+
+    Returns:
+        MCPToolResponse[ETFRankingData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data: ETF排名資訊列表（前10名），每項包含：
+          * rank: 排名
+          * symbol: ETF代碼
+          * name: ETF名稱
+          * investment_amount: 投資金額
+          * investor_count: 定期定額人數
+          * average_investment: 平均投資金額
+          * monthly_growth: 月成長率 (%)
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+        - metadata: 包含報告期間等額外資訊
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 排名資料尚未更新
+        - 資料來源暫時無法存取
+        - 服務暫時異常
+    """
     return await etf_ranking_tool.safe_execute()
 
 
@@ -313,7 +784,48 @@ async def get_etf_regular_investment_ranking():
 async def get_market_index_info(
     category: str = "major", count: int = 20, format: str = "detailed"
 ):
-    """取得市場指數資訊。"""
+    """
+    取得市場指數資訊。
+
+    提供台灣股市各類指數的即時資訊，包括加權指數、類股指數、
+    櫃買指數等，可指定類別、數量和顯示格式。
+
+    使用範例:
+        get_market_index_info()                                    # 查詢主要指數（預設）
+        get_market_index_info(category="sector", count=10)         # 查詢前10個類股指數
+        get_market_index_info(category="all", format="simple")     # 簡易格式顯示所有指數
+
+    Args:
+        category: 指數類別 (預設: "major")
+                 - "major": 主要指數（加權指數、櫃買指數等）
+                 - "sector": 類股指數
+                 - "theme": 主題指數
+                 - "all": 所有指數
+        count: 顯示數量 (預設: 20)
+        format: 顯示格式 (預設: "detailed")
+                - "detailed": 詳細資訊
+                - "simple": 簡易資訊
+
+    Returns:
+        MCPToolResponse[IndexInfoData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data: 市場指數資訊列表，每項包含：
+          * index_name: 指數名稱
+          * current_value: 當前指數值
+          * change: 漲跌點數
+          * change_percent: 漲跌幅 (%)
+          * volume: 成交量
+          * last_update: 最後更新時間
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+        - metadata: 包含查詢類別等額外資訊
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 非交易時段
+        - 指定類別不存在
+        - 資料來源暫時無法存取
+    """
     return await index_info_tool.safe_execute(
         category=category, count=count, format=format
     )
@@ -321,7 +833,44 @@ async def get_market_index_info(
 
 @mcp.tool
 async def get_market_historical_index():
-    """取得歷史指數資料。"""
+    """
+    取得歷史指數資料。
+
+    提供台灣加權指數的歷史走勢資料，包括每日開高低收、
+    成交量等，適合進行技術分析與歷史回測。
+
+    使用範例:
+        get_market_historical_index()         # 查詢歷史指數資料
+
+    Args:
+        無參數
+
+    Returns:
+        MCPToolResponse[HistoricalIndexData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (HistoricalIndexData): 歷史指數資料，包含：
+          * index_name: 指數名稱
+          * historical_data: 每日資料列表，每項包含：
+            - date: 日期
+            - open: 開盤指數
+            - high: 最高指數
+            - low: 最低指數
+            - close: 收盤指數
+            - volume: 成交量 (億股)
+            - change: 漲跌點數
+            - change_percent: 漲跌幅 (%)
+          * period: 資料區間
+          * statistics: 統計資訊（平均成交量、最高收盤等）
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+        - metadata: 包含資料來源等額外資訊
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 歷史資料尚未更新
+        - 資料來源暫時無法存取
+        - 服務暫時異常
+    """
     return await historical_index_tool.safe_execute()
 
 
@@ -330,13 +879,71 @@ async def get_market_historical_index():
 
 @mcp.tool
 async def get_foreign_investment_by_industry():
-    """取得外資持股(按產業別)。"""
+    """
+    取得外資持股（按產業別）。
+
+    提供外資在各產業的持股狀況統計，包括持股比重、買賣超金額等，
+    可用於觀察外資對不同產業的偏好與資金流向。
+
+    使用範例:
+        get_foreign_investment_by_industry()  # 查詢外資各產業持股
+
+    Args:
+        無參數
+
+    Returns:
+        MCPToolResponse[ForeignInvestmentByIndustryData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data: 外資產業持股資訊列表，每項包含：
+          * industry: 產業名稱
+          * total_holding: 外資持股金額 (億元)
+          * percentage: 外資持股比例 (%)
+          * top_stocks: 該產業前幾名股票代碼列表
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 非交易日無資料
+        - 資料來源暫時無法存取
+        - 服務暫時異常
+    """
     return await foreign_investment_tool.get_investment_by_industry()
 
 
 @mcp.tool
 async def get_top_foreign_holdings():
-    """取得外資持股前20名。"""
+    """
+    取得外資持股前20名。
+
+    列出外資持股比例最高的前20檔個股，包括持股比例、持股張數、
+    當日買賣超等資訊，可瞭解外資重點布局標的。
+
+    使用範例:
+        get_top_foreign_holdings()            # 查詢外資持股前20名
+
+    Args:
+        無參數
+
+    Returns:
+        MCPToolResponse[TopForeignHoldingsData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data: 外資持股前20名資訊列表，每項包含：
+          * rank: 排名
+          * symbol: 股票代碼
+          * company_name: 公司名稱
+          * foreign_holding: 外資持股張數
+          * percentage: 外資持股比例 (%)
+          * recent_change: 近期買賣超變化
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 非交易日無資料
+        - 資料來源暫時無法存取
+        - 服務暫時異常
+    """
     return await foreign_investment_tool.get_top_holdings()
 
 

@@ -71,140 +71,121 @@ class TestForeignTools:
                 },
             ],
         }
-        mock_api_client.get_foreign_investment_data.return_value = mock_data
+        # Mock the get_data method instead since that's what the tool calls
+        mock_api_client.get_data.return_value = [
+            mock_data
+        ]  # Wrap in list since tool expects array
 
         # 執行測試
         tool = ForeignInvestmentTool()
         result = await tool.execute(date="2024-01-15")
 
-        # 驗證結果
+        # 驗證結果 - data structure is wrapped by the tool
         assert result["success"] is True
-        assert result["data"] == mock_data
+        assert result["data"]["industry_foreign_investment"] == [mock_data]
+        assert result["data"]["total_industries"] == 1
         assert result["tool"] == "foreign_investment"
-        assert "外資買賣超統計" in result["data"]
-        assert "前十大外資買超股票" in result["data"]
-        assert "前十大外資賣超股票" in result["data"]
 
         # 驗證 API 呼叫
-        mock_api_client.get_foreign_investment_data.assert_called_once_with(
-            "2024-01-15"
-        )
+        mock_api_client.get_data.assert_called_once_with("/fund/MI_QFIIS_cat")
 
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_by_industry(self, mock_api_client):
         """測試外資投資工具 - 依產業別分析"""
-        # 準備測試數據
-        mock_data = {
-            "產業別外資統計": [
-                {
-                    "產業別": "半導體業",
-                    "外資買超": "+5,678,900千元",
-                    "主要標的": ["2330 台積電", "2454 聯發科", "3034 聯詠"],
-                },
-                {
-                    "產業別": "電腦及週邊設備業",
-                    "外資買超": "+1,234,500千元",
-                    "主要標的": ["2317 鴻海", "2382 廣達", "2408 南亞科"],
-                },
-                {
-                    "產業別": "金融保險業",
-                    "外資賣超": "-567,800千元",
-                    "主要標的": ["2891 中信金", "2884 玉山金", "2892 第一金"],
-                },
-            ]
-        }
-        mock_api_client.get_foreign_investment_by_industry.return_value = mock_data
+        # 準備測試數據 - 這是API返回的原始數據
+        mock_raw_data = [
+            {
+                "產業別": "半導體業",
+                "外資買超": "+5,678,900千元",
+                "主要標的": ["2330 台積電", "2454 聯發科", "3034 聯詠"],
+            },
+            {
+                "產業別": "電腦及週邊設備業",
+                "外資買超": "+1,234,500千元",
+                "主要標的": ["2317 鴻海", "2382 廣達", "2408 南亞科"],
+            },
+            {
+                "產業別": "金融保險業",
+                "外資賣超": "-567,800千元",
+                "主要標的": ["2891 中信金", "2884 玉山金", "2892 第一金"],
+            },
+        ]
+        # Mock工具實際調用的方法
+        mock_api_client.get_data.return_value = mock_raw_data
 
         # 執行測試
         tool = ForeignInvestmentTool()
-        result = await tool.execute(analysis_type="industry", date="2024-01-15")
+        result = await tool.execute(action="industry", date="2024-01-15")
 
-        # 驗證結果
+        # 驗證結果 - 工具會包裝返回的數據
         assert result["success"] is True
-        assert result["data"] == mock_data
+        assert result["data"]["industry_foreign_investment"] == mock_raw_data
+        assert result["data"]["total_industries"] == len(mock_raw_data)
         assert result["tool"] == "foreign_investment"
-        assert "產業別外資統計" in result["data"]
+        assert result["source"] == "TWSE Fund Report"
 
         # 驗證 API 呼叫
-        mock_api_client.get_foreign_investment_by_industry.assert_called_once_with(
-            "2024-01-15"
-        )
+        mock_api_client.get_data.assert_called_once_with("/fund/MI_QFIIS_cat")
 
     @pytest.mark.asyncio
-    async def test_foreign_investment_tool_specific_stock(self, mock_api_client):
-        """測試外資投資工具 - 特定股票分析"""
-        # 準備測試數據
-        mock_data = {
-            "股票代號": "2330",
-            "股票名稱": "台積電",
-            "外資持股": {
-                "持股張數": "25,678,900張",
-                "持股比例": "78.5%",
-                "持股市值": "12,839,450,000千元",
+    async def test_foreign_investment_tool_top_holdings(self, mock_api_client):
+        """測試外資投資工具 - 外資持股前20名"""
+        # 準備測試數據 - 這是API返回的原始數據
+        mock_raw_data = [
+            {
+                "股票代號": "2330",
+                "股票名稱": "台積電",
+                "外資持股比例": "78.5%",
+                "外資持股張數": "25,678,900",
             },
-            "近期外資買賣": [
-                {
-                    "日期": "2024/01/15",
-                    "外資買賣超": "+1,234張",
-                    "累積持股變化": "+0.01%",
-                },
-                {
-                    "日期": "2024/01/12",
-                    "外資買賣超": "+5,678張",
-                    "累積持股變化": "+0.05%",
-                },
-            ],
-            "外資券商分析": [
-                {
-                    "券商": "摩根大通",
-                    "目標價": "600元",
-                    "投資建議": "買進",
-                    "更新日期": "2024/01/10",
-                },
-            ],
-        }
-        mock_api_client.get_foreign_investment_for_stock.return_value = mock_data
+            {
+                "股票代號": "2317",
+                "股票名稱": "鴻海",
+                "外資持股比例": "35.2%",
+                "外資持股張數": "12,345,600",
+            },
+        ]
+        # Mock工具實際調用的方法
+        mock_api_client.get_data.return_value = mock_raw_data
 
         # 執行測試
         tool = ForeignInvestmentTool()
-        result = await tool.execute(symbol="2330", analysis_type="stock")
+        result = await tool.execute(action="top_holdings")
 
-        # 驗證結果
+        # 驗證結果 - 工具會包裝返回的數據
         assert result["success"] is True
-        assert result["data"] == mock_data
+        assert result["data"]["top_foreign_holdings"] == mock_raw_data
+        assert result["data"]["count"] == len(mock_raw_data)
         assert result["tool"] == "foreign_investment"
-        assert result["data"]["股票代號"] == "2330"
-        assert "外資持股" in result["data"]
+        assert result["source"] == "TWSE Fund Report"
 
         # 驗證 API 呼叫
-        mock_api_client.get_foreign_investment_for_stock.assert_called_once_with("2330")
+        mock_api_client.get_data.assert_called_once_with("/fund/MI_QFIIS_sort_20")
 
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_no_data(self, mock_api_client):
         """測試外資投資工具 - 找不到資料"""
         # 設定 API 回傳空資料
-        mock_api_client.get_foreign_investment_data.return_value = None
+        mock_api_client.get_data.return_value = None
 
         # 執行測試
         tool = ForeignInvestmentTool()
-        result = await tool.execute(date="2024-01-15")
+        result = await tool.execute(action="industry")
 
         # 驗證結果
         assert result["success"] is False
-        assert "找不到外資投資資料" in result["error"]
+        assert "No foreign investment data by industry available" in result["error"]
         assert result["tool"] == "foreign_investment"
 
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_exception(self, mock_api_client):
         """測試外資投資工具 - 異常處理"""
         # 設定 API 拋出異常
-        mock_api_client.get_foreign_investment_data.side_effect = Exception(
-            "API 連線失敗"
-        )
+        mock_api_client.get_data.side_effect = Exception("API 連線失敗")
 
         # 執行測試
         tool = ForeignInvestmentTool()
-        result = await tool.execute(date="2024-01-15")
+        result = await tool.execute(action="industry")
 
         # 驗證結果
         assert result["success"] is False
@@ -215,54 +196,35 @@ class TestForeignTools:
     async def test_foreign_investment_tool_default_date(self, mock_api_client):
         """測試外資投資工具 - 使用預設日期"""
         # 準備測試數據
-        mock_data = {"外資買賣超統計": {"日期": "今日", "外資買賣超": "+1,000千元"}}
-        mock_api_client.get_foreign_investment_data.return_value = mock_data
+        mock_raw_data = [{"產業別": "測試產業", "外資買賣超": "+1,000千元"}]
+        mock_api_client.get_data.return_value = mock_raw_data
 
-        # 執行測試（不提供日期參數）
+        # 執行測試（不提供日期參數，預設action為industry）
         tool = ForeignInvestmentTool()
         result = await tool.execute()
 
         # 驗證結果
         assert result["success"] is True
-        assert result["data"] == mock_data
+        assert result["data"]["industry_foreign_investment"] == mock_raw_data
+        assert result["data"]["total_industries"] == 1
 
-        # 驗證 API 被呼叫（應該使用預設日期）
-        mock_api_client.get_foreign_investment_data.assert_called_once()
+        # 驗證 API 被呼叫（應該使用預設action=industry）
+        mock_api_client.get_data.assert_called_once_with("/fund/MI_QFIIS_cat")
 
     @pytest.mark.asyncio
-    async def test_foreign_investment_tool_historical_analysis(self, mock_api_client):
-        """測試外資投資工具 - 歷史分析"""
-        # 準備測試數據
-        mock_data = {
-            "期間": "2024/01/01 - 2024/01/15",
-            "外資累計買賣超": "+15,678,900千元",
-            "平均日買賣超": "+1,045,260千元",
-            "最大單日買超": "+3,456,789千元",
-            "最大單日賣超": "-1,234,567千元",
-            "趨勢分析": "外資持續買超，顯示對台股信心增強",
-            "熱門標的": [
-                {"股票": "2330 台積電", "累計買超": "+5,678,900千元"},
-                {"股票": "2317 鴻海", "累計買超": "+2,345,600千元"},
-            ],
-        }
-        mock_api_client.get_foreign_investment_historical.return_value = mock_data
-
-        # 執行測試
+    async def test_foreign_investment_tool_invalid_action(self, mock_api_client):
+        """測試外資投資工具 - 無效action處理"""
+        # 執行測試 - 使用無效的action
         tool = ForeignInvestmentTool()
-        result = await tool.execute(
-            analysis_type="historical", start_date="2024-01-01", end_date="2024-01-15"
-        )
+        result = await tool.execute(action="invalid_action")
 
-        # 驗證結果
-        assert result["success"] is True
-        assert result["data"] == mock_data
+        # 驗證結果 - 應該返回錯誤
+        assert result["success"] is False
+        assert "Unknown action: invalid_action" in result["error"]
         assert result["tool"] == "foreign_investment"
-        assert "趨勢分析" in result["data"]
 
-        # 驗證 API 呼叫
-        mock_api_client.get_foreign_investment_historical.assert_called_once_with(
-            "2024-01-01", "2024-01-15"
-        )
+        # 驗證沒有API呼叫
+        mock_api_client.get_data.assert_not_called()
 
     def test_foreign_investment_tool_name(self):
         """測試工具名稱正確性"""
@@ -273,16 +235,17 @@ class TestForeignTools:
     async def test_foreign_investment_tool_safe_execute(self, mock_api_client):
         """測試外資投資工具的 safe_execute 方法"""
         # 準備測試數據
-        mock_data = {"test": "data"}
-        mock_api_client.get_foreign_investment_data.return_value = mock_data
+        mock_raw_data = [{"test": "data"}]
+        mock_api_client.get_data.return_value = mock_raw_data
 
         # 執行測試
         tool = ForeignInvestmentTool()
-        result = await tool.safe_execute(date="2024-01-15")
+        result = await tool.safe_execute(action="industry")
 
         # 驗證結果
         assert result["success"] is True
-        assert result["data"] == mock_data
+        assert result["data"]["industry_foreign_investment"] == mock_raw_data
+        assert result["data"]["total_industries"] == 1
 
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_context_manager(self):
@@ -294,27 +257,26 @@ class TestForeignTools:
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_invalid_analysis_type(self, mock_api_client):
         """測試外資投資工具 - 無效分析類型"""
-        # 執行測試
+        # 執行測試 - 使用無效的action
         tool = ForeignInvestmentTool()
-        result = await tool.execute(analysis_type="invalid_type")
+        result = await tool.execute(action="invalid_type")
 
-        # 驗證結果應該處理無效類型
-        # 這取決於具體實現，可能回傳錯誤或使用預設類型
-        assert "error" in result or "success" in result
+        # 驗證結果應該返回錯誤
+        assert result["success"] is False
+        assert "Unknown action: invalid_type" in result["error"]
 
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_multiple_params(self, mock_api_client):
         """測試外資投資工具 - 多參數組合"""
         # 準備測試數據
-        mock_data = {"combined_analysis": "test_data"}
-        mock_api_client.get_foreign_investment_data.return_value = mock_data
+        mock_raw_data = [{"combined_analysis": "test_data"}]
+        mock_api_client.get_data.return_value = mock_raw_data
 
-        # 執行測試
+        # 執行測試 - 使用有效的action，額外參數應該被忽略
         tool = ForeignInvestmentTool()
-        result = await tool.execute(
-            date="2024-01-15", symbol="2330", analysis_type="combined"
-        )
+        result = await tool.execute(action="industry", date="2024-01-15", symbol="2330")
 
         # 驗證結果
         assert result["success"] is True
-        assert result["data"] == mock_data
+        assert result["data"]["industry_foreign_investment"] == mock_raw_data
+        assert result["data"]["total_industries"] == 1

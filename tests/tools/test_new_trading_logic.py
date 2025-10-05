@@ -3,48 +3,48 @@
 """
 
 import asyncio
-import sys
-from pathlib import Path
 
 # 添加項目根目錄到 Python path (如果需要)
 # project_root = Path(__file__).parent.parent.parent
 # sys.path.insert(0, str(project_root))
-
-from src.server import mcp, buy_taiwan_stock, sell_taiwan_stock
+from src.tools.trading import StockTradingTool
 
 
 async def test_trading_logic():
     """測試交易邏輯"""
     print("=== 測試交易邏輯 ===\n")
 
+    # 創建交易工具實例
+    trading_tool = StockTradingTool()
+
     # 測試1: 限價買入 - 出價低於市價（應該失敗）
     print("測試1: 限價買入 - 出價100元 vs 中華電信市價134.5元")
-    result1 = await buy_taiwan_stock(symbol="2412", quantity=10000, price=100.0)
+    result1 = await trading_tool.buy(symbol="2412", quantity=10000, price=100.0)
     print(f"結果: {result1}\n")
 
     # 測試2: 限價買入 - 出價高於市價（應該成功）
     print("測試2: 限價買入 - 出價140元 vs 中華電信市價134.5元")
-    result2 = await buy_taiwan_stock(symbol="2412", quantity=10000, price=140.0)
+    result2 = await trading_tool.buy(symbol="2412", quantity=10000, price=140.0)
     print(f"結果: {result2}\n")
 
     # 測試3: 市價買入（應該成功）
     print("測試3: 市價買入 - 不指定價格")
-    result3 = await buy_taiwan_stock(symbol="2412", quantity=10000)
+    result3 = await trading_tool.buy(symbol="2412", quantity=10000)
     print(f"結果: {result3}\n")
 
     # 測試4: 限價賣出 - 售價高於市價（應該失敗）
     print("測試4: 限價賣出 - 售價150元 vs 中華電信市價134.5元")
-    result4 = await sell_taiwan_stock(symbol="2412", quantity=10000, price=150.0)
+    result4 = await trading_tool.sell(symbol="2412", quantity=10000, price=150.0)
     print(f"結果: {result4}\n")
 
     # 測試5: 限價賣出 - 售價低於市價（應該成功）
     print("測試5: 限價賣出 - 售價130元 vs 中華電信市價134.5元")
-    result5 = await sell_taiwan_stock(symbol="2412", quantity=10000, price=130.0)
+    result5 = await trading_tool.sell(symbol="2412", quantity=10000, price=130.0)
     print(f"結果: {result5}\n")
 
     # 測試6: 市價賣出（應該成功）
     print("測試6: 市價賣出 - 不指定價格")
-    result6 = await sell_taiwan_stock(symbol="2412", quantity=10000)
+    result6 = await trading_tool.sell(symbol="2412", quantity=10000)
     print(f"結果: {result6}\n")
 
 

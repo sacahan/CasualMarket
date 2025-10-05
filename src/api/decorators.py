@@ -112,6 +112,24 @@ def with_rate_limit(
             start_time = time.time()
 
             try:
+                # 檢查是否啟用限速功能
+                if (
+                    os.getenv("MARKET_MCP_RATE_LIMITING_ENABLED", "true").lower()
+                    == "false"
+                ):
+                    # 如果禁用了限速，直接執行函數
+                    result = await func(*args, **kwargs)
+                    response_time = (time.time() - start_time) * 1000
+
+                    # 記錄統計但不快取數據
+                    request_id = await request_tracker.record_request_start(
+                        symbol, request_type
+                    )
+                    await request_tracker.record_request_complete(
+                        request_id, symbol, True, response_time, False, request_type
+                    )
+                    return result
+
                 # 檢查限速狀態
                 can_request, reason, wait_time = await rate_limiter.can_request(symbol)
 

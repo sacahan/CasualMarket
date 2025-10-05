@@ -3,11 +3,19 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+from datetime import datetime
+from typing import Any, TypeVar
 
 from ...api.openapi_client import OpenAPIClient
 from ...api.twse_client import create_client
+from ...models.mcp_response import (
+    MCPToolResponse,
+    create_error_response,
+    create_success_response,
+)
 from ...utils.logging import get_logger
+
+T = TypeVar("T")
 
 
 class ToolBase(ABC):
@@ -30,7 +38,7 @@ class ToolBase(ABC):
         self.stock_client = create_client()
 
     @abstractmethod
-    async def execute(self, **kwargs) -> dict[str, Any]:
+    async def execute(self, **kwargs) -> MCPToolResponse[Any]:
         """
         執行工具的主要功能。
 
@@ -38,11 +46,11 @@ class ToolBase(ABC):
             **kwargs: 工具參數
 
         Returns:
-            統一格式的回應字典
+            統一格式的 MCP 回應
         """
         pass
 
-    def _success_response(self, data: Any, **metadata) -> dict[str, Any]:
+    def _success_response(self, data: T, **metadata) -> MCPToolResponse[T]:
         """
         建立成功回應。
 
@@ -51,17 +59,15 @@ class ToolBase(ABC):
             **metadata: 額外的元資料
 
         Returns:
-            成功回應字典
+            標準格式的成功回應
         """
-        response = {
-            "success": True,
-            "data": data,
-            "tool": self.name,
-        }
-        response.update(metadata)
-        return response
+        return create_success_response(
+            data=data,
+            tool=self.name,
+            metadata=metadata,
+        )
 
-    def _error_response(self, error: str, **metadata) -> dict[str, Any]:
+    def _error_response(self, error: str, **metadata) -> MCPToolResponse[None]:
         """
         建立錯誤回應。
 
@@ -70,17 +76,15 @@ class ToolBase(ABC):
             **metadata: 額外的元資料
 
         Returns:
-            錯誤回應字典
+            標準格式的錯誤回應
         """
-        response = {
-            "success": False,
-            "error": error,
-            "tool": self.name,
-        }
-        response.update(metadata)
-        return response
+        return create_error_response(
+            error=error,
+            tool=self.name,
+            metadata=metadata,
+        )
 
-    async def safe_execute(self, **kwargs) -> dict[str, Any]:
+    async def safe_execute(self, **kwargs) -> MCPToolResponse[Any]:
         """
         安全執行工具，包含錯誤處理。
 
@@ -94,11 +98,11 @@ class ToolBase(ABC):
             self.logger.info(f"執行工具 {self.name}")
             result = await self.execute(**kwargs)
 
-            if result.get("success", False):
+            if result.success:
                 self.logger.info(f"工具 {self.name} 執行成功")
             else:
                 self.logger.warning(
-                    f"工具 {self.name} 執行失敗: {result.get('error', 'Unknown error')}"
+                    f"工具 {self.name} 執行失敗: {result.error or 'Unknown error'}"
                 )
 
             return result

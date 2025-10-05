@@ -239,7 +239,7 @@ class TestFinancialTools:
             "每股盈餘": 27.03,
             "市值": 13000000000000,
         }
-        mock_api_client.get_valuation_data.return_value = mock_data
+        mock_api_client.get_company_data.return_value = mock_data
 
         # 執行測試
         tool = ValuationTool()
@@ -264,7 +264,7 @@ class TestFinancialTools:
             "股票股利": 0.0,
             "發放日": "2024/07/11",
         }
-        mock_api_client.get_dividend_schedule.return_value = mock_data
+        mock_api_client.get_company_data.return_value = mock_data
 
         # 執行測試
         tool = DividendScheduleTool()
@@ -272,7 +272,10 @@ class TestFinancialTools:
 
         # 驗證結果
         assert result["success"] is True
-        assert result["data"] == mock_data
+        assert result["data"]["dividend_schedule"] == [
+            mock_data
+        ]  # Should be wrapped in list
+        assert result["data"]["query_symbol"] == "2330"
         assert result["tool"] == "dividend_schedule"
 
     @pytest.mark.asyncio
