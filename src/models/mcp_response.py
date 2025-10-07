@@ -120,6 +120,29 @@ class ForeignInvestmentData(BaseModel):
     rank: int | None = Field(default=None, description="排名")
 
 
+class HolidayInfoData(BaseModel):
+    """節假日資訊模型"""
+
+    date: str = Field(..., description="日期 (YYYY-MM-DD)")
+    name: str = Field(..., description="節假日名稱")
+    is_holiday: bool = Field(..., description="是否為節假日")
+    holiday_category: str = Field(..., description="節假日類別")
+    description: str = Field(..., description="節假日描述")
+
+
+class TradingDayStatusData(BaseModel):
+    """交易日狀態資料模型"""
+
+    date: str = Field(..., description="查詢日期 (YYYY-MM-DD)")
+    is_trading_day: bool = Field(..., description="是否為交易日")
+    is_weekend: bool = Field(..., description="是否為週末")
+    is_holiday: bool = Field(..., description="是否為國定假日")
+    holiday_name: str | None = Field(
+        default=None, description="節假日名稱（如果是節假日）"
+    )
+    reason: str = Field(..., description="不是交易日的原因（如果不是交易日）")
+
+
 # 常用的類型別名，便於使用
 StockPriceResponse = MCPToolResponse[StockPriceData]
 CompanyProfileResponse = MCPToolResponse[CompanyProfileData]

@@ -20,14 +20,11 @@ uvx --from . casual-market-mcp
 #### Development Execution (Recommended for Active Development)
 
 ```bash
-# Development mode - avoids uvx cache issues
-./scripts/dev-run.sh
-
-# Or manually with uv run
+# Development mode - direct execution avoids uvx cache issues
 uv run python -m src.main
 
 # Quick functionality test
-./scripts/dev-test.sh
+uv run python tests/api/demo_enhanced_client.py
 ```
 
 #### Cache Management
@@ -124,18 +121,33 @@ uv run python tests/api/debug_api.py
    - `decorators.py`: Function decorators for adding caching and rate limiting to API methods
 3. **Cache System** (`src/cache/`): Integrated rate limiting and caching service with request tracking
 4. **Securities Database** (`src/securities_db.py`): SQLite database for ISIN codes and company name resolution
-5. **Financial Tools** (`src/tools/analysis/`): Advanced financial analysis using TWSE OpenAPI
-6. **Data Models** (`src/models/`): Pydantic models for stock data, trading operations, and API responses
-7. **Scrapers** (`src/scrapers/`): TWSE data scrapers for maintaining the securities database
+5. **Tool Base Architecture** (`src/tools/base/`): Base classes and decorators for standardized tool development
+6. **Financial Tools** (`src/tools/`): Domain-organized tools including:
+   - `trading/`: Stock prices, trading operations, statistics
+   - `financial/`: Financial statements, dividends, valuation, revenue
+   - `market/`: Market indices, ETF data, margin trading
+   - `foreign/`: Foreign investment analysis
+7. **Data Parser** (`src/parsers/twse_parser.py`): TWSE API response parsing and validation
+8. **Data Models** (`src/models/`): Pydantic models for stock data, trading operations, and API responses
+9. **Scrapers** (`src/scrapers/`): TWSE data scrapers for maintaining the securities database
 
 ### Key Architectural Patterns
 
 - **FastMCP Integration**: Uses `@mcp.tool` decorators instead of traditional MCP server setup
+- **ToolBase Inheritance**: All tools inherit from `ToolBase` class providing:
+  - Unified error handling via `safe_execute()` method
+  - Standard response formatting (`_success_response`, `_error_response`)
+  - Built-in API client initialization (both TWSE and OpenAPI clients)
+  - Context manager support for resource cleanup
+- **Dual API Client Architecture**:
+  - `TWStockAPIClient`: Real-time stock quotes from TWSE API (with rate limiting)
+  - `OpenAPIClient`: Financial statements and company data from TWSE OpenAPI (typically no rate limiting)
 - **Decorator-Based Enhancement**: Function decorators (`@with_cache`) add caching and rate limiting to API methods
 - **Rate Limited Caching**: All API calls go through `RateLimitedCacheService` to prevent API abuse
+- **Unified Response Model**: All tools return `MCPToolResponse[T]` with consistent structure
 - **Layered Validation**: Input validation at multiple levels (symbol format, market type, API response)
 - **Company Name Resolution**: Supports both stock codes and company names via local SQLite database
-- **Modular Tool Design**: Financial analysis tools are pluggable components using dependency injection
+- **Data Parsing Pipeline**: `TWStockDataParser` transforms raw TWSE API JSON into validated models
 
 ### Data Flow
 
@@ -262,7 +274,7 @@ Example Claude Desktop configuration in `examples/claude_desktop_config.json`:
 
 ### Database Management
 
-- **Securities Database**: `src/twse_securities.db` contains ISIN codes and company name mappings
+- **Securities Database**: `src/data/twse_securities.db` contains ISIN codes and company name mappings
 - **Database Updates**: Use scrapers in `src/scrapers/` to refresh company data
 - **Company Name Resolution**: Handled automatically via `securities_db.py` module
 - **Testing Database**: Isolated test database used during testing to avoid conflicts

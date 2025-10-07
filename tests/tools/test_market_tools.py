@@ -8,8 +8,10 @@ from unittest.mock import AsyncMock, patch
 from src.tools.market import (
     ETFRankingTool,
     HistoricalIndexTool,
+    HolidayTool,
     IndexInfoTool,
     MarginTradingTool,
+    TradingDayTool,
     TradingStatsTool,
 )
 
@@ -355,6 +357,8 @@ class TestMarketTools:
         assert IndexInfoTool().name == "index_info"
         assert MarginTradingTool().name == "margin_trading"
         assert TradingStatsTool().name == "trading_stats"
+        assert HolidayTool().name == "holiday_tool"
+        assert TradingDayTool().name == "trading_day_tool"
 
     @pytest.mark.asyncio
     async def test_tool_safe_execute(self, mock_api_client):
@@ -379,3 +383,198 @@ class TestMarketTools:
         with ETFRankingTool() as tool:
             assert tool is not None
             assert tool.name == "etf_ranking"
+
+    # === 節假日工具測試 ===
+
+    @pytest.mark.asyncio
+    async def test_holiday_tool_success_holiday(self):
+        """測試節假日工具 - 查詢國定假日成功案例"""
+        # 準備測試數據 - 模擬節假日API返回的數據
+        mock_holiday_data = {
+            "_id": 1528,
+            "date": "20251006",
+            "name": "中秋節",
+            "isHoliday": 1,
+            "holidaycategory": "放假之紀念日及節日",
+            "description": "全國各機關學校放假一日。",
+        }
+
+        with patch(
+            "src.tools.market.holiday_tool.TaiwanHolidayAPIClient"
+        ) as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value = mock_client
+
+            # 模擬 HolidayData 對象
+            from src.api.holiday_client import HolidayData
+
+            mock_holiday_obj = HolidayData(mock_holiday_data)
+            mock_client.get_holiday_info.return_value = mock_holiday_obj
+
+            # 執行測試
+            tool = HolidayTool()
+            result = await tool.execute(date="2025-10-06")
+
+            # 驗證結果
+            assert result.success is True
+            assert result.data.date == "20251006"
+            assert result.data.name == "中秋節"
+            assert result.data.is_holiday is True
+            assert result.data.holiday_category == "放假之紀念日及節日"
+            assert result.data.description == "全國各機關學校放假一日。"
+            assert result.tool == "holiday_tool"
+
+            # 驗證 API 呼叫
+            mock_client.get_holiday_info.assert_called_once_with("2025-10-06")
+
+    @pytest.mark.asyncio
+    async def test_holiday_tool_success_no_holiday(self):
+        """測試節假日工具 - 查詢非節假日成功案例"""
+        with patch(
+            "src.tools.market.holiday_tool.TaiwanHolidayAPIClient"
+        ) as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value = mock_client
+
+            # 模擬非節假日情況（返回 None）
+            mock_client.get_holiday_info.return_value = None
+
+            # 執行測試
+            tool = HolidayTool()
+            result = await tool.execute(date="2025-10-07")
+
+            # 驗證結果
+            assert result.success is True
+            assert result.data.date == "2025-10-07"
+            assert result.data.name == ""
+            assert result.data.is_holiday is False
+            assert result.data.holiday_category == ""
+            assert result.data.description == "非節假日"
+            assert result.tool == "holiday_tool"
+
+    @pytest.mark.asyncio
+    async def test_trading_day_tool_success_trading_day(self):
+        """測試交易日工具 - 正常交易日成功案例"""
+        with patch(
+            "src.tools.market.holiday_tool.TaiwanHolidayAPIClient"
+        ) as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value = mock_client
+
+            # 模擬工作日（非週末、非節假日）
+            mock_client.is_weekend.return_value = False
+            mock_client.get_holiday_info.return_value = None
+
+            # 執行測試
+            tool = TradingDayTool()
+            result = await tool.execute(date="2025-10-07")  # 假設是週二
+
+            # 驗證結果
+            assert result.success is True
+            assert result.data.date == "2025-10-07"
+            assert result.data.is_trading_day is True
+            assert result.data.is_weekend is False
+            assert result.data.is_holiday is False
+            assert result.data.holiday_name is None
+            assert result.data.reason == "是交易日"
+            assert result.tool == "trading_day_tool"
+
+    @pytest.mark.asyncio
+    async def test_trading_day_tool_success_weekend(self):
+        """測試交易日工具 - 週末非交易日案例"""
+        with patch(
+            "src.tools.market.holiday_tool.TaiwanHolidayAPIClient"
+        ) as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value = mock_client
+
+            # 模擬週末
+            mock_client.is_weekend.return_value = True
+            mock_client.get_holiday_info.return_value = None
+
+            # 執行測試
+            tool = TradingDayTool()
+            result = await tool.execute(date="2025-10-11")  # 假設是週六
+
+            # 驗證結果
+            assert result.success is True
+            assert result.data.date == "2025-10-11"
+            assert result.data.is_trading_day is False
+            assert result.data.is_weekend is True
+            assert result.data.is_holiday is False
+            assert result.data.holiday_name is None
+            assert result.data.reason == "週末"
+            assert result.tool == "trading_day_tool"
+
+    @pytest.mark.asyncio
+    async def test_trading_day_tool_success_holiday(self):
+        """測試交易日工具 - 國定假日非交易日案例"""
+        # 準備測試數據
+        mock_holiday_data = {
+            "_id": 1528,
+            "date": "20251006",
+            "name": "中秋節",
+            "isHoliday": 1,
+            "holidaycategory": "放假之紀念日及節日",
+            "description": "全國各機關學校放假一日。",
+        }
+
+        with patch(
+            "src.tools.market.holiday_tool.TaiwanHolidayAPIClient"
+        ) as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value = mock_client
+
+            # 模擬國定假日（非週末）
+            from src.api.holiday_client import HolidayData
+
+            mock_holiday_obj = HolidayData(mock_holiday_data)
+            mock_client.is_weekend.return_value = False
+            mock_client.get_holiday_info.return_value = mock_holiday_obj
+
+            # 執行測試
+            tool = TradingDayTool()
+            result = await tool.execute(date="2025-10-06")
+
+            # 驗證結果
+            assert result.success is True
+            assert result.data.date == "2025-10-06"
+            assert result.data.is_trading_day is False
+            assert result.data.is_weekend is False
+            assert result.data.is_holiday is True
+            assert result.data.holiday_name == "中秋節"
+            assert result.data.reason == "國定假日（中秋節）"
+            assert result.tool == "trading_day_tool"
+
+    @pytest.mark.asyncio
+    async def test_holiday_tool_error_missing_date(self):
+        """測試節假日工具 - 缺少日期參數錯誤案例"""
+        tool = HolidayTool()
+        result = await tool.execute()
+
+        # 驗證錯誤結果
+        assert result.success is False
+        assert "缺少必要參數: date" in result.error
+        assert result.tool == "holiday_tool"
+
+    @pytest.mark.asyncio
+    async def test_trading_day_tool_error_missing_date(self):
+        """測試交易日工具 - 缺少日期參數錯誤案例"""
+        tool = TradingDayTool()
+        result = await tool.execute()
+
+        # 驗證錯誤結果
+        assert result.success is False
+        assert "缺少必要參數: date" in result.error
+        assert result.tool == "trading_day_tool"
+
+    @pytest.mark.asyncio
+    async def test_trading_day_tool_error_invalid_date_format(self):
+        """測試交易日工具 - 無效日期格式錯誤案例"""
+        tool = TradingDayTool()
+        result = await tool.execute(date="invalid-date")
+
+        # 驗證錯誤結果
+        assert result.success is False
+        assert "日期格式錯誤" in result.error
+        assert result.tool == "trading_day_tool"

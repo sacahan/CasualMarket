@@ -4,6 +4,7 @@
 
 from .etf_ranking import ETFRankingTool
 from .historical_index import HistoricalIndexTool
+from .holiday_tool import HolidayTool, TradingDayTool
 from .index_info import IndexInfoTool
 from .margin_trading import MarginTradingTool
 from .trading_stats import TradingStatsTool
@@ -14,4 +15,6 @@ __all__ = [
     "ETFRankingTool",
     "IndexInfoTool",
     "HistoricalIndexTool",
+    "HolidayTool",
+    "TradingDayTool",
 ]

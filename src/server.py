@@ -19,8 +19,10 @@ from .tools.foreign import ForeignInvestmentTool
 from .tools.market import (
     ETFRankingTool,
     HistoricalIndexTool,
+    HolidayTool,
     IndexInfoTool,
     MarginTradingTool,
+    TradingDayTool,
     TradingStatsTool,
 )
 
@@ -61,6 +63,8 @@ trading_stats_tool = TradingStatsTool()
 etf_ranking_tool = ETFRankingTool()
 index_info_tool = IndexInfoTool()
 historical_index_tool = HistoricalIndexTool()
+holiday_tool = HolidayTool()
+trading_day_tool = TradingDayTool()
 
 # 創建工具實例 - 外資相關
 foreign_investment_tool = ForeignInvestmentTool()
@@ -945,6 +949,84 @@ async def get_top_foreign_holdings():
         - 服務暫時異常
     """
     return await foreign_investment_tool.get_top_holdings()
+
+
+# === 節假日工具 ===
+
+
+@mcp.tool
+async def get_taiwan_holiday_info(date: str):
+    """
+    取得台灣節假日資訊。
+
+    查詢指定日期是否為台灣的國定假日，並取得節假日的詳細資訊。
+
+    使用範例:
+        get_taiwan_holiday_info("2025-01-01")      # 查詢元旦
+        get_taiwan_holiday_info("2025-10-06")      # 查詢中秋節
+        get_taiwan_holiday_info("2025-10-07")      # 查詢一般工作日
+
+    Args:
+        date: 要查詢的日期，格式為 YYYY-MM-DD (例如: "2025-01-01")
+
+    Returns:
+        MCPToolResponse[HolidayInfoData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (HolidayInfoData): 節假日資訊，包含：
+          * date: 查詢日期
+          * name: 節假日名稱（如果是節假日）
+          * is_holiday: 是否為節假日
+          * holiday_category: 節假日類別
+          * description: 節假日描述
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 日期格式錯誤
+        - API 服務異常
+        - 網路連線問題
+    """
+    return await holiday_tool.execute(date=date)
+
+
+@mcp.tool
+async def check_taiwan_trading_day(date: str):
+    """
+    檢查台灣股市是否為交易日。
+
+    綜合考慮週末和國定假日，判斷指定日期是否為台灣股市的交易日。
+    台灣股市交易日條件：非週末且非國定假日。
+
+    使用範例:
+        check_taiwan_trading_day("2025-01-01")     # 元旦（非交易日）
+        check_taiwan_trading_day("2025-10-06")     # 中秋節（非交易日）
+        check_taiwan_trading_day("2025-10-07")     # 一般工作日（交易日）
+        check_taiwan_trading_day("2025-10-11")     # 週六（非交易日）
+
+    Args:
+        date: 要檢查的日期，格式為 YYYY-MM-DD (例如: "2025-01-01")
+
+    Returns:
+        MCPToolResponse[TradingDayStatusData]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (TradingDayStatusData): 交易日狀態資訊，包含：
+          * date: 查詢日期
+          * is_trading_day: 是否為交易日
+          * is_weekend: 是否為週末
+          * is_holiday: 是否為國定假日
+          * holiday_name: 節假日名稱（如果是節假日）
+          * reason: 不是交易日的原因（如果不是交易日）
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 日期格式錯誤
+        - API 服務異常
+        - 網路連線問題
+    """
+    return await trading_day_tool.execute(date=date)
 
 
 def main():
