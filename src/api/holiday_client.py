@@ -13,7 +13,6 @@ import httpx
 from loguru import logger
 
 from ..api.decorators import with_cache
-from ..cache.cache_service import RateLimitedCacheService
 
 
 class HolidayData:
@@ -57,12 +56,11 @@ class TaiwanHolidayAPIClient:
         self.timeout = timeout
         self.session = httpx.AsyncClient(timeout=timeout)
 
-        # 獲取全域快取服務實例
-        self.cache_service = RateLimitedCacheService.get_instance()
-
         logger.info(f"初始化台灣節假日API客戶端 - 基礎URL: {self.base_url}")
 
-    @with_cache("holiday", enable_rate_limit=False)  # 節假日數據不需要限速
+    @with_cache(
+        enable_rate_limit=False, cache_key_prefix="holiday"
+    )  # 節假日數據不需要限速
     async def get_holiday_info(self, check_date: date | str) -> HolidayData | None:
         """
         查詢指定日期的節假日資訊
