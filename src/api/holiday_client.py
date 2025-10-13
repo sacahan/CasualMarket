@@ -56,7 +56,7 @@ class TaiwanHolidayAPIClient:
         self.timeout = timeout
         self.session = httpx.AsyncClient(timeout=timeout)
 
-        logger.info(f"初始化台灣節假日API客戶端 - 基礎URL: {self.base_url}")
+        logger.debug(f"初始化台灣節假日API客戶端 - 基礎URL: {self.base_url}")
 
     @with_cache(
         enable_rate_limit=False, cache_key_prefix="holiday"

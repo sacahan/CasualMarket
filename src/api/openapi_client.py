@@ -33,7 +33,7 @@ class OpenAPIClient:
             verify=False,  # SSL verification bypass for TWSE compatibility
         )
 
-        logger.info(f"OpenAPIClient 初始化完成，基礎 URL: {self.BASE_URL}")
+        logger.debug(f"OpenAPIClient 初始化完成，基礎 URL: {self.BASE_URL}")
         logger.debug(
             f"HTTP Client 設定: User-Agent={self.USER_AGENT}, timeout=30.0s, verify=False"
         )
