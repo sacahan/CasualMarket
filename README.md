@@ -4,6 +4,8 @@
 [![FastMCP](https://img.shields.io/badge/FastMCP-2.7.0+-green.svg)](https://github.com/jlowin/fastmcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+<img width="400" height="600" alt="ChatGPT Image 2025年10月16日 上午11_08_27" src="https://github.com/user-attachments/assets/acf589f1-3654-47f2-8d98-141974a28339" />
+
 一個功能完整的台灣股票交易 Model Context Protocol (MCP) Server，提供 **23 個專業工具**，涵蓋即時股價查詢、財務分析、市場資訊、節假日判斷等多種功能。基於 FastMCP 框架開發，具備智慧快取和頻率限制機制。
 
 ## 🌟 特色功能
