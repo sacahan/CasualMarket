@@ -76,13 +76,13 @@ class TestMarketTools:
         result = await tool.execute()
 
         # 驗證結果 - 工具會包裝返回的數據
-        assert result["success"] is True
-        assert result["data"]["rankings"] == mock_raw_data
-        assert result["data"]["total_count"] == len(mock_raw_data)
-        assert result["data"]["displayed_count"] == len(mock_raw_data)
-        assert result["data"]["ranking_date"] is None
-        assert result["tool"] == "etf_ranking"
-        assert result["source"] == "TWSE ETF Report"
+        assert result.success is True
+        assert result.data["rankings"] == mock_raw_data
+        assert result.data["total_count"] == len(mock_raw_data)
+        assert result.data["displayed_count"] == len(mock_raw_data)
+        assert result.data["ranking_date"] is None
+        assert result.tool == "etf_ranking"
+        assert result.metadata["source"] == "TWSE ETF Report"
 
         # 驗證 API 呼叫
         mock_api_client.get_data.assert_called_once_with("/ETFReport/ETFRank")
@@ -90,33 +90,61 @@ class TestMarketTools:
     @pytest.mark.asyncio
     async def test_historical_index_tool_success(self, mock_api_client):
         """測試歷史指數工具 - 成功案例"""
-        # 準備測試數據 - 這是API返回的原始數據
+        # 準備測試數據 - 包含精選的重要指數
         mock_raw_data = [
             {
-                "指數名稱": "臺灣加權股價指數",
-                "日期": "2024/01/15",
-                "開盤指數": "17,500.25",
-                "最高指數": "17,685.40",
-                "最低指數": "17,420.15",
-                "收盤指數": "17,632.83",
-                "漲跌點數": "+152.58",
-                "漲跌幅": "+0.87%",
-                "成交量": "2,456,789",
-            }
+                "日期": "1141017",
+                "指數": "發行量加權股價指數",
+                "收盤指數": "27302",
+                "漲跌": "-",
+                "漲跌點數": "345.50",
+                "漲跌百分比": "-1.25",
+                "特殊處理註記": "",
+            },
+            {
+                "日期": "1141017",
+                "指數": "未含金融指數",
+                "收盤指數": "24144",
+                "漲跌": "-",
+                "漲跌點數": "327.43",
+                "漲跌百分比": "-1.34",
+                "特殊處理註記": "",
+            },
+            {
+                "日期": "1141017",
+                "指數": "電子工業類指數",
+                "收盤指數": "1621",
+                "漲跌": "-",
+                "漲跌點數": "26.38",
+                "漲跌百分比": "-1.60",
+                "特殊處理註記": "",
+            },
+            {
+                "日期": "1141017",
+                "指數": "其他指數",  # 不在精選列表中
+                "收盤指數": "12345",
+                "漲跌": "+",
+                "漲跌點數": "100.00",
+                "漲跌百分比": "+0.82",
+                "特殊處理註記": "",
+            },
         ]
         # Mock工具實際調用的方法
         mock_api_client.get_latest_market_data.return_value = mock_raw_data
 
         # 執行測試
         tool = HistoricalIndexTool()
-        result = await tool.execute(date="2024-01-15")
+        result = await tool.execute()
 
-        # 驗證結果 - 工具會包裝返回的數據
-        assert result["success"] is True
-        assert result["data"]["historical_indices"] == mock_raw_data
-        assert result["data"]["count"] == len(mock_raw_data)
-        assert result["tool"] == "historical_index"
-        assert result["source"] == "TWSE Exchange Report"
+        # 驗證結果 - 只返回精選的重要指數，過濾掉其他指數
+        assert result.success is True
+        assert result.data["count"] == 3  # 只有3個在精選列表中
+        assert len(result.data["indices"]) == 3
+        assert result.data["indices"][0]["指數"] == "發行量加權股價指數"
+        assert result.data["indices"][1]["指數"] == "未含金融指數"
+        assert result.data["indices"][2]["指數"] == "電子工業類指數"
+        assert result.tool == "historical_index"
+        assert result.metadata["source"] == "TWSE Exchange Report"
 
         # 驗證 API 呼叫
         mock_api_client.get_latest_market_data.assert_called_once_with(
@@ -147,21 +175,38 @@ class TestMarketTools:
                 "最低指數": "14,120.15",
             },
         ]
-        # Mock工具實際調用的方法
-        mock_api_client.get_latest_market_data.return_value = mock_raw_data
+        # Mock工具實際調用的方法 - 返回包含發行量加權股價指數的數據
+        mock_api_client.get_latest_market_data.return_value = [
+            {
+                "日期": "1141017",
+                "指數": "發行量加權股價指數",
+                "收盤指數": "27302",
+                "漲跌": "-",
+                "漲跌點數": "345.50",
+                "漲跌百分比": "-1.25",
+                "特殊處理註記": "",
+            },
+            {
+                "日期": "1141017",
+                "指數": "其他指數",
+                "收盤指數": "12345",
+                "漲跌": "+",
+                "漲跌點數": "123.45",
+                "漲跌百分比": "+1.01",
+                "特殊處理註記": "",
+            },
+        ]
 
         # 執行測試
         tool = IndexInfoTool()
-        result = await tool.execute(category="major", count=20, format="detailed")
+        result = await tool.execute()
 
-        # 驗證結果 - 工具會包裝返回的數據
-        assert result["success"] is True
-        assert result["data"]["category"] == "major"
-        assert result["data"]["count"] == len(mock_raw_data)
-        assert result["data"]["format"] == "detailed"
-        assert result["data"]["indices"] == mock_raw_data
-        assert result["tool"] == "index_info"
-        assert result["source"] == "TWSE Market Index Report"
+        # 驗證結果 - 只返回發行量加權股價指數
+        assert result.success is True
+        assert result.data["指數"] == "發行量加權股價指數"
+        assert result.data["收盤指數"] == "27302"
+        assert result.tool == "index_info"
+        assert result.metadata["source"] == "TWSE Market Index Report"
 
         # 驗證 API 呼叫
         mock_api_client.get_latest_market_data.assert_called_once_with(
@@ -202,12 +247,12 @@ class TestMarketTools:
         result = await tool.execute(symbol="2330")
 
         # 驗證結果 - 工具會包裝返回的數據
-        assert result["success"] is True
-        assert result["data"]["margin_data"] == mock_raw_data
-        assert result["data"]["total_count"] == len(mock_raw_data)
-        assert result["data"]["displayed_count"] == len(mock_raw_data)
-        assert result["tool"] == "margin_trading"
-        assert result["source"] == "TWSE Margin Trading Report"
+        assert result.success is True
+        assert result.data["margin_data"] == mock_raw_data
+        assert result.data["total_count"] == len(mock_raw_data)
+        assert result.data["displayed_count"] == len(mock_raw_data)
+        assert result.tool == "margin_trading"
+        assert result.metadata["source"] == "TWSE Margin Trading Report"
 
         # 驗證 API 呼叫
         mock_api_client.get_data.assert_called_once_with("/exchangeReport/MI_MARGN")
@@ -240,12 +285,12 @@ class TestMarketTools:
         result = await tool.execute(date="2024-01-15")
 
         # 驗證結果 - 工具會包裝返回的數據
-        assert result["success"] is True
-        assert result["data"]["trading_stats"] == mock_raw_data
-        assert result["data"]["count"] == len(mock_raw_data)
-        assert result["data"]["frequency"] == "5_minutes"
-        assert result["tool"] == "trading_stats"
-        assert result["source"] == "TWSE Real-time Trading Statistics"
+        assert result.success is True
+        assert result.data["trading_stats"] == mock_raw_data
+        assert result.data["count"] == len(mock_raw_data)
+        assert result.data["frequency"] == "5_minutes"
+        assert result.tool == "trading_stats"
+        assert result.metadata["source"] == "TWSE Real-time Trading Statistics"
 
         # 驗證 API 呼叫
         mock_api_client.get_latest_market_data.assert_called_once_with(
@@ -263,9 +308,9 @@ class TestMarketTools:
         result = await tool.execute()
 
         # 驗證結果
-        assert result["success"] is False
-        assert "No ETF ranking data available" in result["error"]
-        assert result["tool"] == "etf_ranking"
+        assert result.success is False
+        assert "No ETF ranking data available" in result.error
+        assert result.tool == "etf_ranking"
 
     @pytest.mark.asyncio
     async def test_margin_trading_tool_exception(self, mock_api_client):
@@ -278,9 +323,9 @@ class TestMarketTools:
         result = await tool.execute(symbol="2330")
 
         # 驗證結果
-        assert result["success"] is False
-        assert "API 連線失敗" in result["error"]
-        assert result["tool"] == "margin_trading"
+        assert result.success is False
+        assert "API 連線失敗" in result.error
+        assert result.tool == "margin_trading"
 
     @pytest.mark.asyncio
     async def test_trading_stats_tool_invalid_date(self, mock_api_client):
@@ -293,15 +338,15 @@ class TestMarketTools:
         result = await tool.execute(date="invalid-date")
 
         # 驗證結果
-        assert result["success"] is False
-        assert "No real-time trading stats available" in result["error"]
-        assert result["tool"] == "trading_stats"
+        assert result.success is False
+        assert "No real-time trading stats available" in result.error
+        assert result.tool == "trading_stats"
 
     @pytest.mark.asyncio
     async def test_historical_index_tool_with_default_date(self, mock_api_client):
         """測試歷史指數工具 - 使用預設日期"""
-        # 準備測試數據
-        mock_raw_data = [{"指數名稱": "臺灣加權股價指數", "收盤指數": "17,632.83"}]
+        # 準備測試數據 - 包含一個重要指數
+        mock_raw_data = [{"指數": "發行量加權股價指數", "收盤指數": "17,632.83"}]
         mock_api_client.get_latest_market_data.return_value = mock_raw_data
 
         # 執行測試（不提供日期參數）
@@ -309,9 +354,10 @@ class TestMarketTools:
         result = await tool.execute()
 
         # 驗證結果
-        assert result["success"] is True
-        assert result["data"]["historical_indices"] == mock_raw_data
-        assert result["data"]["count"] == len(mock_raw_data)
+        assert result.success is True
+        assert len(result.data["indices"]) == 1  # 只有一個重要指數
+        assert result.data["count"] == 1
+        assert result.data["indices"][0]["指數"] == "發行量加權股價指數"
 
         # 驗證 API 被呼叫（應該使用預設日期或當日）
         mock_api_client.get_latest_market_data.assert_called_once_with(
@@ -336,19 +382,28 @@ class TestMarketTools:
                 "漲跌幅": "+0.60%",
             },
         ]
+        # 添加發行量加權股價指數到測試數據中
+        mock_raw_data.append(
+            {
+                "日期": "1141017",
+                "指數": "發行量加權股價指數",
+                "收盤指數": "14500.50",
+                "漲跌": "+",
+                "漲跌點數": "85.42",
+                "漲跌百分比": "+0.59",
+                "特殊處理註記": "",
+            }
+        )
         mock_api_client.get_latest_market_data.return_value = mock_raw_data
 
         # 執行測試
         tool = IndexInfoTool()
-        result = await tool.execute()  # 不指定特定指數，取得所有指數
+        result = await tool.execute()
 
-        # 驗證結果
-        assert result["success"] is True
-        assert result["data"]["category"] == "major"  # 預設類別
-        assert result["data"]["count"] == len(mock_raw_data)
-        assert result["data"]["format"] == "detailed"  # 預設格式
-        assert result["data"]["indices"] == mock_raw_data
-        assert len(result["data"]["indices"]) == 2
+        # 驗證結果 - 只返回發行量加權股價指數
+        assert result.success is True
+        assert result.data["指數"] == "發行量加權股價指數"
+        assert result.data["收盤指數"] == "14500.50"
 
     def test_tool_names(self):
         """測試工具名稱正確性"""
@@ -372,10 +427,10 @@ class TestMarketTools:
         result = await tool.safe_execute()
 
         # 驗證結果
-        assert result["success"] is True
-        assert result["data"]["rankings"] == mock_raw_data
-        assert result["data"]["total_count"] == 1
-        assert result["data"]["displayed_count"] == 1
+        assert result.success is True
+        assert result.data["rankings"] == mock_raw_data
+        assert result.data["total_count"] == 1
+        assert result.data["displayed_count"] == 1
 
     @pytest.mark.asyncio
     async def test_tool_context_manager(self):
@@ -462,8 +517,10 @@ class TestMarketTools:
             mock_client_class.return_value = mock_client
 
             # 模擬工作日（非週末、非節假日）
-            mock_client.is_weekend.return_value = False
-            mock_client.get_holiday_info.return_value = None
+            # is_weekend 是同步方法,使用 Mock 而不是 AsyncMock
+            from unittest.mock import Mock
+            mock_client.is_weekend = Mock(return_value=False)
+            mock_client.get_holiday_info = AsyncMock(return_value=None)
 
             # 執行測試
             tool = TradingDayTool()
@@ -489,8 +546,10 @@ class TestMarketTools:
             mock_client_class.return_value = mock_client
 
             # 模擬週末
-            mock_client.is_weekend.return_value = True
-            mock_client.get_holiday_info.return_value = None
+            # is_weekend 是同步方法,使用 Mock 而不是 AsyncMock
+            from unittest.mock import Mock
+            mock_client.is_weekend = Mock(return_value=True)
+            mock_client.get_holiday_info = AsyncMock(return_value=None)
 
             # 執行測試
             tool = TradingDayTool()
@@ -527,10 +586,12 @@ class TestMarketTools:
 
             # 模擬國定假日（非週末）
             from src.api.holiday_client import HolidayData
+            from unittest.mock import Mock
 
             mock_holiday_obj = HolidayData(mock_holiday_data)
-            mock_client.is_weekend.return_value = False
-            mock_client.get_holiday_info.return_value = mock_holiday_obj
+            # is_weekend 是同步方法,使用 Mock 而不是 AsyncMock
+            mock_client.is_weekend = Mock(return_value=False)
+            mock_client.get_holiday_info = AsyncMock(return_value=mock_holiday_obj)
 
             # 執行測試
             tool = TradingDayTool()

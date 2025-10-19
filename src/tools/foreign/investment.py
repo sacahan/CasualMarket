@@ -19,11 +19,15 @@ class ForeignInvestmentTool(ToolBase):
         """
         取得外資持股(按產業別)。
 
+        Args:
+            count: 限制返回的產業數量,預設為10個產業
+
         Returns:
             包含各產業外資持股比率統計的字典
         """
         try:
-            self.logger.info("查詢外資持股(按產業別)")
+            count = kwargs.get("count", 10)  # 預設返回前10個產業
+            self.logger.info(f"查詢外資持股(按產業別),限制 {count} 個產業")
             endpoint = "/fund/MI_QFIIS_cat"
             data = await self.api_client.get_data(endpoint)
 
@@ -32,12 +36,18 @@ class ForeignInvestmentTool(ToolBase):
                     "No foreign investment data by industry available"
                 )
 
+            # 限制返回數量
+            limited_data = data[:count] if count else data
+            total_count = len(data)
+            displayed_count = len(limited_data)
+
             result = {
-                "industry_foreign_investment": data,
-                "total_industries": len(data),
+                "industry_foreign_investment": limited_data,
+                "total_industries": total_count,
+                "displayed_industries": displayed_count,
             }
 
-            self.logger.info(f"成功取得外資持股產業資料: {len(data)} 個產業")
+            self.logger.info(f"成功取得外資持股產業資料: 顯示 {displayed_count}/{total_count} 個產業")
             return self._success_response(data=result, source="TWSE Fund Report")
 
         except Exception as e:

@@ -785,95 +785,88 @@ async def get_etf_regular_investment_ranking():
 
 
 @mcp.tool
-async def get_market_index_info(
-    category: str = "major", count: int = 20, format: str = "detailed"
-):
+async def get_market_index_info():
     """
-    取得市場指數資訊。
+    取得台灣加權指數資訊。
 
-    提供台灣股市各類指數的即時資訊，包括加權指數、類股指數、
-    櫃買指數等，可指定類別、數量和顯示格式。
+    提供台灣股市最主要的「發行量加權股價指數」即時資訊，
+    包括指數點數、漲跌幅等關鍵數據。
 
     使用範例:
-        get_market_index_info()                                    # 查詢主要指數（預設）
-        get_market_index_info(category="sector", count=10)         # 查詢前10個類股指數
-        get_market_index_info(category="all", format="simple")     # 簡易格式顯示所有指數
-
-    Args:
-        category: 指數類別 (預設: "major")
-                 - "major": 主要指數（加權指數、櫃買指數等）
-                 - "sector": 類股指數
-                 - "theme": 主題指數
-                 - "all": 所有指數
-        count: 顯示數量 (預設: 20)
-        format: 顯示格式 (預設: "detailed")
-                - "detailed": 詳細資訊
-                - "simple": 簡易資訊
-
-    Returns:
-        MCPToolResponse[IndexInfoData]: 統一格式的回應，包含：
-        - success (bool): 操作是否成功
-        - data: 市場指數資訊列表，每項包含：
-          * index_name: 指數名稱
-          * current_value: 當前指數值
-          * change: 漲跌點數
-          * change_percent: 漲跌幅 (%)
-          * volume: 成交量
-          * last_update: 最後更新時間
-        - error (str): 錯誤訊息（失敗時）
-        - tool (str): 工具名稱
-        - metadata: 包含查詢類別等額外資訊
-
-    Raises:
-        查詢失敗時返回錯誤回應，可能的原因：
-        - 非交易時段
-        - 指定類別不存在
-        - 資料來源暫時無法存取
-    """
-    return await index_info_tool.safe_execute(
-        category=category, count=count, format=format
-    )
-
-
-@mcp.tool
-async def get_market_historical_index():
-    """
-    取得歷史指數資料。
-
-    提供台灣加權指數的歷史走勢資料，包括每日開高低收、
-    成交量等，適合進行技術分析與歷史回測。
-
-    使用範例:
-        get_market_historical_index()         # 查詢歷史指數資料
+        get_market_index_info()  # 查詢發行量加權股價指數
 
     Args:
         無參數
 
     Returns:
-        MCPToolResponse[HistoricalIndexData]: 統一格式的回應，包含：
+        MCPToolResponse[dict]: 統一格式的回應，包含：
         - success (bool): 操作是否成功
-        - data (HistoricalIndexData): 歷史指數資料，包含：
-          * index_name: 指數名稱
-          * historical_data: 每日資料列表，每項包含：
-            - date: 日期
-            - open: 開盤指數
-            - high: 最高指數
-            - low: 最低指數
-            - close: 收盤指數
-            - volume: 成交量 (億股)
-            - change: 漲跌點數
-            - change_percent: 漲跌幅 (%)
-          * period: 資料區間
-          * statistics: 統計資訊（平均成交量、最高收盤等）
+        - data (dict): 發行量加權股價指數資訊，包含：
+          * 日期: 資料日期
+          * 指數: 指數名稱
+          * 收盤指數: 收盤點數
+          * 漲跌: 漲跌符號
+          * 漲跌點數: 漲跌點數
+          * 漲跌百分比: 漲跌幅百分比
+          * 特殊處理註記: 特殊狀況註記
         - error (str): 錯誤訊息（失敗時）
         - tool (str): 工具名稱
         - metadata: 包含資料來源等額外資訊
 
     Raises:
         查詢失敗時返回錯誤回應，可能的原因：
-        - 歷史資料尚未更新
+        - 非交易時段
         - 資料來源暫時無法存取
-        - 服務暫時異常
+        - 發行量加權股價指數資料不存在
+    """
+    return await index_info_tool.safe_execute()
+
+
+@mcp.tool
+async def get_market_historical_index():
+    """
+    取得市場重要指數資料。
+
+    精選10個最重要的市場指數，提供完整的市場概覽：
+    
+    1. 發行量加權股價指數 - 台灣股市大盤主指數
+    2. 未含金融指數 - 排除金融股的市場指數
+    3. 未含電子指數 - 排除電子股的市場指數
+    4. 臺灣50指數 - 台灣市值前50大企業指數
+    5. 臺灣中型100指數 - 台灣中型企業代表指數
+    6. 電子工業類指數 - 電子產業整體表現
+    7. 金融保險類指數 - 金融保險產業指數
+    8. 半導體類指數 - 半導體產業指數
+    9. 電腦及週邊設備類指數 - 電腦硬體產業指數
+    10. 通信網路類指數 - 通訊網路產業指數
+
+    使用範例:
+        get_market_historical_index()  # 查詢市場重要指數
+
+    Args:
+        無參數
+
+    Returns:
+        MCPToolResponse[dict]: 統一格式的回應，包含：
+        - success (bool): 操作是否成功
+        - data (dict): 市場指數資料，包含：
+          * indices: 指數列表（10個），每項包含：
+            - 日期: 資料日期
+            - 指數: 指數名稱
+            - 收盤指數: 收盤點數
+            - 漲跌: 漲跌符號
+            - 漲跌點數: 漲跌點數
+            - 漲跌百分比: 漲跌幅百分比
+            - 特殊處理註記: 特殊狀況註記
+          * count: 指數數量
+        - error (str): 錯誤訊息（失敗時）
+        - tool (str): 工具名稱
+        - metadata: 包含資料來源等額外資訊
+
+    Raises:
+        查詢失敗時返回錯誤回應，可能的原因：
+        - 資料來源暫時無法存取
+        - 無法取得市場指數資料
     """
     return await historical_index_tool.safe_execute()
 
@@ -882,7 +875,7 @@ async def get_market_historical_index():
 
 
 @mcp.tool
-async def get_foreign_investment_by_industry():
+async def get_foreign_investment_by_industry(count: int = 10):
     """
     取得外資持股（按產業別）。
 
@@ -890,19 +883,23 @@ async def get_foreign_investment_by_industry():
     可用於觀察外資對不同產業的偏好與資金流向。
 
     使用範例:
-        get_foreign_investment_by_industry()  # 查詢外資各產業持股
+        get_foreign_investment_by_industry()        # 查詢外資前10個產業持股（預設）
+        get_foreign_investment_by_industry(count=5)  # 查詢外資前5個產業持股
+        get_foreign_investment_by_industry(count=20) # 查詢外資前20個產業持股
 
     Args:
-        無參數
+        count (int): 限制返回的產業數量，預設為10個產業
 
     Returns:
         MCPToolResponse[ForeignInvestmentByIndustryData]: 統一格式的回應，包含：
         - success (bool): 操作是否成功
-        - data: 外資產業持股資訊列表，每項包含：
-          * industry: 產業名稱
-          * total_holding: 外資持股金額 (億元)
-          * percentage: 外資持股比例 (%)
-          * top_stocks: 該產業前幾名股票代碼列表
+        - data: 外資產業持股資訊，包含：
+          * industry_foreign_investment: 產業列表，每項包含：
+            - 產業別: 產業名稱
+            - 外資持股: 外資持股相關數據
+            - 買賣超: 買賣超金額等資訊
+          * total_industries: 總產業數量
+          * displayed_industries: 顯示的產業數量
         - error (str): 錯誤訊息（失敗時）
         - tool (str): 工具名稱
 
@@ -912,7 +909,7 @@ async def get_foreign_investment_by_industry():
         - 資料來源暫時無法存取
         - 服務暫時異常
     """
-    return await foreign_investment_tool.get_investment_by_industry()
+    return await foreign_investment_tool.get_investment_by_industry(count=count)
 
 
 @mcp.tool

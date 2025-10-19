@@ -81,10 +81,11 @@ class TestForeignTools:
         result = await tool.execute(date="2024-01-15")
 
         # 驗證結果 - data structure is wrapped by the tool
-        assert result["success"] is True
-        assert result["data"]["industry_foreign_investment"] == [mock_data]
-        assert result["data"]["total_industries"] == 1
-        assert result["tool"] == "foreign_investment"
+        assert result.success is True
+        assert result.data["industry_foreign_investment"] == [mock_data]
+        assert result.data["total_industries"] == 1
+        assert result.data["displayed_industries"] == 1
+        assert result.tool == "foreign_investment"
 
         # 驗證 API 呼叫
         mock_api_client.get_data.assert_called_once_with("/fund/MI_QFIIS_cat")
@@ -113,19 +114,45 @@ class TestForeignTools:
         # Mock工具實際調用的方法
         mock_api_client.get_data.return_value = mock_raw_data
 
-        # 執行測試
+        # 執行測試 - 不指定 count，應該返回全部
         tool = ForeignInvestmentTool()
         result = await tool.execute(action="industry", date="2024-01-15")
 
         # 驗證結果 - 工具會包裝返回的數據
-        assert result["success"] is True
-        assert result["data"]["industry_foreign_investment"] == mock_raw_data
-        assert result["data"]["total_industries"] == len(mock_raw_data)
-        assert result["tool"] == "foreign_investment"
-        assert result["source"] == "TWSE Fund Report"
+        assert result.success is True
+        assert result.data["industry_foreign_investment"] == mock_raw_data
+        assert result.data["total_industries"] == 3
+        assert result.data["displayed_industries"] == 3  # 預設限制10個，但資料只有3筆
+        assert result.tool == "foreign_investment"
+        assert result.metadata["source"] == "TWSE Fund Report"
 
         # 驗證 API 呼叫
         mock_api_client.get_data.assert_called_once_with("/fund/MI_QFIIS_cat")
+
+    @pytest.mark.asyncio
+    async def test_foreign_investment_tool_by_industry_with_count(self, mock_api_client):
+        """測試外資投資工具 - 依產業別分析（限制數量）"""
+        # 準備測試數據 - 模擬有5個產業
+        mock_raw_data = [
+            {"產業別": "半導體業", "外資買超": "+5,678,900千元"},
+            {"產業別": "電腦及週邊設備業", "外資買超": "+1,234,500千元"},
+            {"產業別": "金融保險業", "外資賣超": "-567,800千元"},
+            {"產業別": "電子零組件業", "外資買超": "+890,000千元"},
+            {"產業別": "通信網路業", "外資買超": "+345,000千元"},
+        ]
+        mock_api_client.get_data.return_value = mock_raw_data
+
+        # 執行測試 - 限制只返回前2個產業
+        tool = ForeignInvestmentTool()
+        result = await tool.execute(action="industry", count=2)
+
+        # 驗證結果
+        assert result.success is True
+        assert len(result.data["industry_foreign_investment"]) == 2  # 只返回2個
+        assert result.data["total_industries"] == 5  # 總共5個產業
+        assert result.data["displayed_industries"] == 2  # 顯示2個產業
+        assert result.tool == "foreign_investment"
+        assert result.metadata["source"] == "TWSE Fund Report"
 
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_top_holdings(self, mock_api_client):
@@ -153,11 +180,11 @@ class TestForeignTools:
         result = await tool.execute(action="top_holdings")
 
         # 驗證結果 - 工具會包裝返回的數據
-        assert result["success"] is True
-        assert result["data"]["top_foreign_holdings"] == mock_raw_data
-        assert result["data"]["count"] == len(mock_raw_data)
-        assert result["tool"] == "foreign_investment"
-        assert result["source"] == "TWSE Fund Report"
+        assert result.success is True
+        assert result.data["top_foreign_holdings"] == mock_raw_data
+        assert result.data["count"] == len(mock_raw_data)
+        assert result.tool == "foreign_investment"
+        assert result.metadata["source"] == "TWSE Fund Report"
 
         # 驗證 API 呼叫
         mock_api_client.get_data.assert_called_once_with("/fund/MI_QFIIS_sort_20")
@@ -173,9 +200,9 @@ class TestForeignTools:
         result = await tool.execute(action="industry")
 
         # 驗證結果
-        assert result["success"] is False
-        assert "No foreign investment data by industry available" in result["error"]
-        assert result["tool"] == "foreign_investment"
+        assert result.success is False
+        assert "No foreign investment data by industry available" in result.error
+        assert result.tool == "foreign_investment"
 
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_exception(self, mock_api_client):
@@ -188,9 +215,9 @@ class TestForeignTools:
         result = await tool.execute(action="industry")
 
         # 驗證結果
-        assert result["success"] is False
-        assert "API 連線失敗" in result["error"]
-        assert result["tool"] == "foreign_investment"
+        assert result.success is False
+        assert "API 連線失敗" in result.error
+        assert result.tool == "foreign_investment"
 
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_default_date(self, mock_api_client):
@@ -204,9 +231,10 @@ class TestForeignTools:
         result = await tool.execute()
 
         # 驗證結果
-        assert result["success"] is True
-        assert result["data"]["industry_foreign_investment"] == mock_raw_data
-        assert result["data"]["total_industries"] == 1
+        assert result.success is True
+        assert result.data["industry_foreign_investment"] == mock_raw_data
+        assert result.data["total_industries"] == 1
+        assert result.data["displayed_industries"] == 1
 
         # 驗證 API 被呼叫（應該使用預設action=industry）
         mock_api_client.get_data.assert_called_once_with("/fund/MI_QFIIS_cat")
@@ -219,9 +247,9 @@ class TestForeignTools:
         result = await tool.execute(action="invalid_action")
 
         # 驗證結果 - 應該返回錯誤
-        assert result["success"] is False
-        assert "Unknown action: invalid_action" in result["error"]
-        assert result["tool"] == "foreign_investment"
+        assert result.success is False
+        assert "Unknown action: invalid_action" in result.error
+        assert result.tool == "foreign_investment"
 
         # 驗證沒有API呼叫
         mock_api_client.get_data.assert_not_called()
@@ -243,9 +271,10 @@ class TestForeignTools:
         result = await tool.safe_execute(action="industry")
 
         # 驗證結果
-        assert result["success"] is True
-        assert result["data"]["industry_foreign_investment"] == mock_raw_data
-        assert result["data"]["total_industries"] == 1
+        assert result.success is True
+        assert result.data["industry_foreign_investment"] == mock_raw_data
+        assert result.data["total_industries"] == 1
+        assert result.data["displayed_industries"] == 1
 
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_context_manager(self):
@@ -262,8 +291,8 @@ class TestForeignTools:
         result = await tool.execute(action="invalid_type")
 
         # 驗證結果應該返回錯誤
-        assert result["success"] is False
-        assert "Unknown action: invalid_type" in result["error"]
+        assert result.success is False
+        assert "Unknown action: invalid_type" in result.error
 
     @pytest.mark.asyncio
     async def test_foreign_investment_tool_multiple_params(self, mock_api_client):
@@ -277,6 +306,7 @@ class TestForeignTools:
         result = await tool.execute(action="industry", date="2024-01-15", symbol="2330")
 
         # 驗證結果
-        assert result["success"] is True
-        assert result["data"]["industry_foreign_investment"] == mock_raw_data
-        assert result["data"]["total_industries"] == 1
+        assert result.success is True
+        assert result.data["industry_foreign_investment"] == mock_raw_data
+        assert result.data["total_industries"] == 1
+        assert result.data["displayed_industries"] == 1
