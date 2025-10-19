@@ -4,18 +4,14 @@ MCP 工具統一回應模型定義。
 定義所有 MCP 工具的標準回應格式，確保一致性和類型安全。
 """
 
-from __future__ import annotations
-
 from datetime import datetime
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 # 定義泛型類型變量，用於強類型的資料欄位
-T = TypeVar("T")
 
-
-class MCPToolResponse(BaseModel, Generic[T]):
+class MCPToolResponse[T](BaseModel):
     """
     MCP 工具統一回應格式基類。
 
@@ -29,17 +25,13 @@ class MCPToolResponse(BaseModel, Generic[T]):
     timestamp: datetime = Field(default_factory=datetime.now, description="回應時間戳")
     metadata: dict[str, Any] = Field(default_factory=dict, description="額外的元資料")
 
-    class Config:
-        """Pydantic 配置"""
-
-        # 允許任意類型，用於泛型支援
-        arbitrary_types_allowed = True
-        # 使用 enum 值而非名稱進行序列化
-        use_enum_values = True
-        # JSON 編碼器配置
-        json_encoders = {
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "use_enum_values": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
-        }
+        },
+    }
 
 
 class StockPriceData(BaseModel):

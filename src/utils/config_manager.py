@@ -3,8 +3,6 @@ Dynamic configuration manager for rate limiting and cache parameters.
 Allows runtime adjustment of system parameters for optimal performance.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import threading

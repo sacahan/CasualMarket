@@ -5,8 +5,6 @@
 確保資料的型別安全和驗證。
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 
 from pydantic import BaseModel, Field, field_serializer, field_validator

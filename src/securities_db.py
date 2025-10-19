@@ -4,8 +4,6 @@
 提供對 TWSE 證券資料庫的查詢功能，支援按股票代碼和公司名稱查詢。
 """
 
-from __future__ import annotations
-
 import re
 import sqlite3
 from dataclasses import dataclass

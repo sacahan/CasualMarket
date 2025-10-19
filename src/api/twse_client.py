@@ -5,8 +5,6 @@
 回應處理、錯誤重試等機制。
 """
 
-from __future__ import annotations
-
 import asyncio
 import os
 import time
