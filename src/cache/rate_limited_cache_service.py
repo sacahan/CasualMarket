@@ -104,29 +104,33 @@ class RateLimitedCacheService:
         3. 若流量受限則回傳快取資料
         4. 若無快取且流量受限則回傳 None
         """
-        # Always try cache first
+        # 優先檢查快取（最快的路徑）
         cached_data = None
         if self._is_caching_enabled():
             cached_data = await self.cache_manager.get_cached_data(symbol, request_type)
 
-        # Check rate limits
+        # 檢查是否超過速率限制
         can_request, reason, wait_time = await self.can_make_request(
             symbol, request_type
         )
 
+        # 速率限制允許：可以返回快取或準備新請求
         if can_request:
             if cached_data:
+                # 快取命中且允許新請求：返回快取但標記為可刷新
                 return cached_data, True, "cache_hit_but_can_make_new_request"
             else:
                 return None, False, "cache_miss_can_make_request"
         else:
-            # Rate limited - return cached data if available
+            # 被限速：優先返回快取資料，否則返回 None
             if cached_data:
+                # 雖被限速但有快取：返回快取以改善用戶體驗
                 await self.request_tracker.record_rate_limit_hit(
                     symbol, reason, wait_time, request_type
                 )
                 return cached_data, True, f"rate_limited_returned_cache_{reason}"
             else:
+                # 被限速且無快取：無法滿足請求
                 await self.request_tracker.record_rate_limit_hit(
                     symbol, reason, wait_time, request_type
                 )
@@ -144,17 +148,17 @@ class RateLimitedCacheService:
         全部記錄成功則回傳 True。
         """
         try:
-            # Record the request with rate limiter
+            # 1. 通知速率限制器已完成一次請求
             await self.rate_limiter.record_request(symbol)
 
-            # Cache the response data
+            # 2. 存儲回應資料到快取（若啟用）
             cache_success = True
             if self._is_caching_enabled():
                 cache_success = await self.cache_manager.set_cached_data(
                     symbol, response_data, request_type
                 )
 
-            # Track the request for statistics
+            # 3. 記錄統計資訊（用於效能分析）
             request_id = await self.request_tracker.record_request_start(
                 symbol, request_type
             )
@@ -180,9 +184,11 @@ class RateLimitedCacheService:
         記錄失敗的 API 請求以供統計。
         """
         try:
+            # 記錄請求失敗統計（包含響應時間）
             request_id = await self.request_tracker.record_request_start(
                 symbol, request_type
             )
+            # 第五個參數 False 表示此為 API 請求失敗
             await self.request_tracker.record_request_complete(
                 request_id, symbol, False, response_time_ms, False, request_type
             )

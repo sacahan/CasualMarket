@@ -117,23 +117,25 @@ class TWStockDataParser:
             ValidationError: 必要欄位缺失或格式錯誤時拋出
         """
         try:
-            # 檢查是否為字典
+            # 先驗證資料型態
             if not isinstance(msg_data, dict):
                 raise ValidationError("股票資料格式不正確")
 
-            # 解析基本欄位
+            # 1. 提取識別資訊（股票代號和公司名稱）
             symbol = self._extract_symbol_from_dict(msg_data)
             company_name = self._extract_company_name_from_dict(msg_data)
 
-            # 特殊處理成交價 - 如果沒有成交價，使用昨收價
+            # 2. 提取和處理成交價格
+            # 特殊邏輯：如果成交價為 "-"（盤中未成交），使用昨收價作為參考價
             raw_current_price = self._extract_price_from_dict(msg_data, "current_price")
             previous_close = self._extract_price_from_dict(msg_data, "previous_close")
 
-            # 如果成交價為0（即原始資料為"-"），使用昨收價
+            # 如果成交價為0（原始資料為"-"），使用昨收價
             current_price = (
                 raw_current_price if raw_current_price > 0 else previous_close
             )
 
+            # 3. 計算漲跌資訊
             change = (
                 current_price - previous_close
                 if current_price is not None and previous_close is not None
@@ -142,19 +144,19 @@ class TWStockDataParser:
             change_percent = self._calculate_change_percent(current_price, change)
             volume = self._extract_volume_from_dict(msg_data)
 
-            # 解析價格欄位
+            # 4. 解析其他價格欄位（開盤、最高、最低、漲停、跌停）
             open_price = self._extract_price_from_dict(msg_data, "open_price")
             high_price = self._extract_price_from_dict(msg_data, "high_price")
             low_price = self._extract_price_from_dict(msg_data, "low_price")
             upper_limit = self._extract_price_from_dict(msg_data, "upper_limit")
             lower_limit = self._extract_price_from_dict(msg_data, "lower_limit")
 
-            # 解析五檔資料
+            # 5. 解析買賣五檔資料
             bid_prices, bid_volumes, ask_prices, ask_volumes = (
                 self._parse_bid_ask_data_from_dict(msg_data)
             )
 
-            # 解析時間欄位
+            # 6. 解析時間資訊
             update_time = self._parse_update_time_from_dict(msg_data)
             last_trade_time = self._extract_last_trade_time_from_dict(msg_data)
 
@@ -193,7 +195,8 @@ class TWStockDataParser:
 
     def _extract_company_name_from_dict(self, data: dict) -> str:
         """從字典中提取公司名稱。"""
-        # 優先使用完整名稱，如果沒有則使用簡稱
+        # 優先使用完整名稱 (full_name)，若無則回退到簡稱 (name)
+        # 這支援不同的 API 回應格式
         name = data.get(self._field_mapping["full_name"]) or data.get(
             self._field_mapping["name"], ""
         )
@@ -202,10 +205,17 @@ class TWStockDataParser:
         return sanitize_company_name(name)
 
     def _extract_price_from_dict(self, data: dict, price_type: str) -> float:
-        """從字典中提取價格欄位。"""
+        """
+        從字典中提取價格欄位。
+        
+        特殊處理：
+        - API 回傳 "-" 表示無資料，轉換為 0.0
+        - 驗證價格合理性
+        """
         field_key = self._field_mapping[price_type]
         price_str = data.get(field_key, "0")
         try:
+            # 轉換字串為浮點數，"-" 表示無資料時返回 0.0
             price = float(price_str) if price_str and price_str != "-" else 0.0
             if not validate_price(price) and price != 0.0:
                 raise ValidationError(f"{price_type} 價格無效: {price}")
@@ -214,20 +224,34 @@ class TWStockDataParser:
             raise ValidationError(f"無法解析 {price_type}: {price_str}") from e
 
     def _calculate_change_percent(self, current_price: float, change: float) -> float:
-        """計算漲跌幅百分比。"""
+        """
+        計算漲跌幅百分比。
+        
+        公式: 漲跌幅 = 漲跌金額 / 昨收價 = 漲跌金額 / (成交價 - 漲跌金額)
+        """
+        # 異常情況：零價格或零變化
         if current_price == 0 or change == 0:
             return 0.0
 
+        # 反向計算昨收價
         previous_price = current_price - change
         if previous_price == 0:
             return 0.0
 
+        # 百分比計算
         return change / previous_price
 
     def _extract_volume_from_dict(self, data: dict) -> int:
-        """從字典中提取成交量。"""
+        """
+        從字典中提取成交量。
+        
+        特殊處理：
+        - API 回傳 "-" 表示無資料，轉換為 0
+        - 驗證成交量合理性
+        """
         volume_str = data.get(self._field_mapping["volume"], "0")
         try:
+            # 轉換字串為整數，"-" 表示無資料時返回 0
             volume = int(volume_str) if volume_str and volume_str != "-" else 0
             if not validate_volume(volume):
                 raise ValidationError(f"成交量無效: {volume}")
@@ -238,14 +262,22 @@ class TWStockDataParser:
     def _parse_bid_ask_data_from_dict(
         self, data: dict
     ) -> tuple[list[float], list[int], list[float], list[int]]:
-        """從字典中解析五檔買賣資料。"""
+        """
+        從字典中解析五檔買賣資料。
+        
+        API 回傳的買賣資料格式為串接字串：
+        - bid_data: "價格1_數量1,價格2_數量2,..." (最多5檔)
+        - ask_data: 同上
+        
+        解析失敗時優雅降級返回空清單，確保不會因為五檔解析失敗而中斷整個流程。
+        """
         try:
-            # 解析買盤資料 (bid)
+            # 1. 解析買盤資料 (bid) - 想要買進的委託單
             bid_str = data.get(self._field_mapping["bid_data"], "")
             bid_pairs = parse_price_volume_string(bid_str) if bid_str else []
             bid_prices, bid_volumes = extract_prices_and_volumes(bid_pairs)
 
-            # 解析賣盤資料 (ask)
+            # 2. 解析賣盤資料 (ask) - 想要賣出的委託單
             ask_str = data.get(self._field_mapping["ask_data"], "")
             ask_pairs = parse_price_volume_string(ask_str) if ask_str else []
             ask_prices, ask_volumes = extract_prices_and_volumes(ask_pairs)
@@ -253,24 +285,33 @@ class TWStockDataParser:
             return bid_prices, bid_volumes, ask_prices, ask_volumes
 
         except Exception:
-            # 五檔資料解析失敗時，返回空清單
+            # 五檔資料解析失敗時，返回空清單以避免資料錯誤
+            # 這種情況通常是 API 回應格式異常
             return [], [], [], []
 
     def _parse_update_time_from_dict(self, data: dict) -> datetime:
-        """從字典中解析更新時間。"""
+        """
+        從字典中解析更新時間。
+        
+        時間組合邏輯：
+        - API 回傳日期 (YYYYMMDD) 和時間 (HH:MM:SS) 分開存儲
+        - 組合成完整的 datetime 物件
+        - 解析失敗時回退至當前時間
+        """
         try:
-            # 取得日期和時間
+            # 分別提取日期和時間欄位
             date_str = data.get(self._field_mapping["update_date"], "")
             time_str = data.get(self._field_mapping["update_time"], "")
 
             if date_str and time_str:
-                # 組合日期和時間: "20231201" + "14:30:00"
+                # 組合日期和時間: "20231201" + "14:30:00" -> "20231201 14:30:00"
                 datetime_str = f"{date_str} {time_str}"
                 return datetime.strptime(datetime_str, "%Y%m%d %H:%M:%S")
             else:
-                # 如果時間格式異常，使用當前時間
+                # 時間資訊不完整時使用當前時間
                 return datetime.now()
         except (ValueError, TypeError):
+            # 時間解析異常時使用當前時間作為備用方案
             return datetime.now()
 
     def _extract_last_trade_time_from_dict(self, data: dict) -> str:

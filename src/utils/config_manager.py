@@ -94,27 +94,47 @@ class ConfigManager:
             return False
 
     def _merge_config(self, target: dict, source: dict) -> None:
-        """Recursively merge source config into target config."""
+        """
+        遞迴合併源配置到目標配置。
+        
+        邏輯：
+        - 如果鍵值指向字典，遞迴合併
+        - 否則直接覆蓋目標值（源配置優先級更高）
+        """
         for key, value in source.items():
             if (
                 key in target
                 and isinstance(target[key], dict)
                 and isinstance(value, dict)
             ):
+                # 遞迴合併嵌套字典
                 self._merge_config(target[key], value)
             else:
+                # 直接覆蓋：源配置的值優先
                 target[key] = value
 
     def get(self, key_path: str, default: Any = None) -> Any:
         """
-        Get configuration value using dot notation.
-        Example: get('rate_limiting.per_stock_interval_seconds')
+        使用點符號表示法取得配置值。
+        
+        示例：
+            get('rate_limiting.per_stock_interval_seconds')
+            get('caching.ttl_seconds')
+        
+        Args:
+            key_path: 以點分隔的鍵路徑
+            default: 如果鍵不存在則返回的預設值
+        
+        Returns:
+            配置值或預設值
         """
         with self.lock:
+            # 將路徑分割為層級鍵
             keys = key_path.split(".")
             value = self._config
 
             try:
+                # 逐層導航到目標值
                 for key in keys:
                     value = value[key]
                 return value
@@ -124,25 +144,37 @@ class ConfigManager:
 
     def set(self, key_path: str, value: Any, save_to_file: bool = False) -> bool:
         """
-        Set configuration value using dot notation.
-        Returns True if successful.
+        使用點符號表示法設定配置值。
+        
+        示例：
+            set('rate_limiting.per_stock_interval_seconds', 30.0)
+            set('caching.ttl_seconds', 60, save_to_file=True)
+        
+        Args:
+            key_path: 以點分隔的鍵路徑
+            value: 要設定的值
+            save_to_file: 是否持久化到檔案
+        
+        Returns:
+            True 如果設定成功
         """
         with self.lock:
             keys = key_path.split(".")
             config = self._config
 
             try:
-                # Navigate to the parent of the target key
+                # 逐層導航到目標鍵的父級，建立必要的中間層級
                 for key in keys[:-1]:
                     if key not in config:
                         config[key] = {}
                     config = config[key]
 
-                # Set the final key
+                # 設定最終的值
                 config[keys[-1]] = value
 
                 logger.info(f"設定已更新: {key_path} = {value}")
 
+                # 可選：同步保存到檔案
                 if save_to_file:
                     return self.save_config()
 
@@ -178,9 +210,23 @@ class ConfigManager:
         per_second_limit: int | None = None,
         save_to_file: bool = False,
     ) -> bool:
-        """Update rate limiting parameters."""
+        """
+        批量更新限速配置參數。
+        
+        允許同時更新多個限速參數。只有非 None 的參數才會被更新。
+        
+        Args:
+            per_stock_interval: 單個股票的限速間隔（秒）
+            global_limit_per_minute: 全域每分鐘限制（請求數）
+            per_second_limit: 每秒限制（請求數）
+            save_to_file: 是否持久化變更到檔案
+        
+        Returns:
+            True 如果更新成功
+        """
         try:
             with self.lock:
+                # 只更新提供的（非 None）參數
                 if per_stock_interval is not None:
                     self._config["rate_limiting"][
                         "per_stock_interval_seconds"
@@ -196,6 +242,7 @@ class ConfigManager:
 
                 logger.info("流量限制設定已更新")
 
+                # 可選：保存到檔案以確保下次啟動時載入更新的配置
                 if save_to_file:
                     return self.save_config()
 

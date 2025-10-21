@@ -48,13 +48,19 @@ def setup_logging(
 
     # Add file handler if specified
     if log_path:
+        # 確保日誌目錄存在
+        from pathlib import Path
+
+        log_file_path = Path(log_path)
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
         logger.add(
             log_path,
             level=log_level,
             format=log_format,
             rotation="1 day",
             retention="7 days",
-            compression="gzip",
+            compression="gz",
             backtrace=True,
             diagnose=True,
         )
