@@ -298,7 +298,11 @@ def with_cache(
                     )
                     if cached_data and not force_refresh:
                         # 快取命中且未要求強制刷新，直接返回
-                        logger.info(f"快取命中: {cache_key_str} -> {cache_key}")
+                        response_time = (time.time() - start_time) * 1000
+                        logger.info(
+                            f"[快取命中] 函數: {func.__name__}, 快取鍵: {cache_key}, "
+                            f"參數: {cache_key_str}, 響應時間: {response_time:.2f}ms"
+                        )
                         return _parse_cached_response(cached_data["data"])
 
                 # === 執行實際的 API 呼叫 ===
@@ -316,7 +320,10 @@ def with_cache(
                         await cache_service.record_successful_request(
                             cache_key, result_dict, response_time, prefix
                         )
-                        logger.info(f"已快取資料: {cache_key_str} -> {cache_key}")
+                        logger.info(
+                            f"[已快取] 函數: {func.__name__}, 快取鍵: {cache_key}, "
+                            f"參數: {cache_key_str}, 響應時間: {response_time:.2f}ms"
+                        )
 
                 return result
 
@@ -386,6 +393,9 @@ def _prepare_for_cache(result: Any) -> dict | None:
         elif isinstance(result, dict):
             # 已經是字典，直接返回
             return result
+        elif isinstance(result, list):
+            # 列表類型（如 get_data 返回的資料），直接返回
+            return {"data": result, "type": "list"}
         else:
             # 嘗試使用物件的 __dict__ 屬性
             if hasattr(result, "__dict__"):
@@ -414,8 +424,12 @@ def _parse_cached_response(data: dict) -> Any:
         Any: 還原的物件（TWStockResponse 或原始字典）
     """
     try:
+        # 檢查是否為列表類型的快取資料
+        if "type" in data and data["type"] == "list":
+            # 還原列表資料
+            return data["data"]
         # 透過特徵欄位判斷是否為 TWStockResponse 資料
-        if "company_name" in data and "current_price" in data:
+        elif "company_name" in data and "current_price" in data:
             # 將時間字串還原為 datetime 物件
             if isinstance(data.get("update_time"), str):
                 from datetime import datetime
@@ -428,4 +442,5 @@ def _parse_cached_response(data: dict) -> Any:
             return data
     except Exception:
         # 解析失敗，安全地返回原始字典
+        return data
         return data

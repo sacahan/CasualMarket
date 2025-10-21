@@ -27,7 +27,7 @@ class OpenAPIClient:
     def __init__(self):
         """初始化 OpenAPI 客戶端。"""
         logger.debug("初始化 OpenAPIClient")
-        self.session = httpx.Client(
+        self.session = httpx.AsyncClient(
             headers={"User-Agent": self.USER_AGENT, "Accept": "application/json"},
             timeout=30.0,
             verify=False,  # SSL verification bypass for TWSE compatibility
@@ -54,7 +54,7 @@ class OpenAPIClient:
         logger.info(f"請求 OpenAPI 資料: {url}")
 
         try:
-            response = self.session.get(url)
+            response = await self.session.get(url)
             response.raise_for_status()
 
             # 確保使用 UTF-8 編碼
@@ -176,10 +176,25 @@ class OpenAPIClient:
 
     def close(self):
         """關閉 HTTP 會話。"""
-        self.session.close()
+        import asyncio
+
+        if asyncio.iscoroutinefunction(self.session.aclose):
+            asyncio.create_task(self.session.aclose())
+        else:
+            self.session.close()
+
+    async def aclose(self):
+        """異步關閉 HTTP 會話。"""
+        await self.session.aclose()
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.aclose()
