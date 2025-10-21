@@ -72,6 +72,7 @@ foreign_investment_tool = ForeignInvestmentTool()
 # 創建 API 客戶端實例（用於剩餘未重構的工具）
 api_client = create_client()
 
+logger = get_logger(__name__)
 
 # === 交易相關工具 ===
 
@@ -116,6 +117,7 @@ async def get_taiwan_stock_price(symbol: str):
         - 網路連線問題
         - API 服務異常
     """
+    logger.info(f"工具調用: get_taiwan_stock_price, 參數: symbol={symbol}")
     return await stock_price_tool.safe_execute(symbol=symbol)
 
 
@@ -159,6 +161,9 @@ async def buy_taiwan_stock(symbol: str, quantity: int, price: float | None = Non
         - 指定價格超出漲跌停限制
         - 模擬交易系統異常
     """
+    logger.info(
+        f"工具調用: buy_taiwan_stock, 參數: symbol={symbol}, quantity={quantity}, price={price}"
+    )
     return await stock_trading_tool.buy(symbol=symbol, quantity=quantity, price=price)
 
 
@@ -202,6 +207,9 @@ async def sell_taiwan_stock(symbol: str, quantity: int, price: float | None = No
         - 指定價格超出漲跌停限制
         - 模擬交易系統異常
     """
+    logger.info(
+        f"工具調用: sell_taiwan_stock, 參數: symbol={symbol}, quantity={quantity}, price={price}"
+    )
     return await stock_trading_tool.sell(symbol=symbol, quantity=quantity, price=price)
 
 
@@ -240,6 +248,7 @@ async def get_stock_daily_trading(symbol: str):
         - 非交易日或市場尚未開盤
         - 資料來源暫時無法存取
     """
+    logger.info(f"工具調用: get_stock_daily_trading, 參數: symbol={symbol}")
     return await daily_trading_tool.safe_execute(symbol=symbol)
 
 
@@ -294,6 +303,7 @@ async def get_company_income_statement(symbol: str):
         - OpenAPI 服務異常
         - 行業別偵測失敗
     """
+    logger.info(f"工具調用: get_company_income_statement, 參數: symbol={symbol}")
     return await financial_statements_tool.get_income_statement(symbol)
 
 
@@ -335,6 +345,7 @@ async def get_company_balance_sheet(symbol: str):
         - 財報資料尚未公布
         - OpenAPI 服務異常
     """
+    logger.info(f"工具調用: get_company_balance_sheet, 參數: symbol={symbol}")
     return await financial_statements_tool.get_balance_sheet(symbol)
 
 
@@ -374,6 +385,7 @@ async def get_company_profile(symbol: str):
         - 資料來源暫時無法存取
         - 公司資訊尚未更新
     """
+    logger.info(f"工具調用: get_company_profile, 參數: symbol={symbol}")
     return await company_profile_tool.safe_execute(symbol=symbol)
 
 
@@ -414,6 +426,7 @@ async def get_company_dividend(symbol: str):
         - 尚無股利分配記錄
         - 資料來源暫時無法存取
     """
+    logger.info(f"工具調用: get_company_dividend, 參數: symbol={symbol}")
     return await dividend_tool.safe_execute(symbol=symbol)
 
 
@@ -452,6 +465,7 @@ async def get_company_monthly_revenue(symbol: str):
         - 月營收資料尚未公布
         - 資料來源暫時無法存取
     """
+    logger.info(f"工具調用: get_company_monthly_revenue, 參數: symbol={symbol}")
     return await revenue_tool.safe_execute(symbol=symbol)
 
 
@@ -490,6 +504,7 @@ async def get_stock_valuation_ratios(symbol: str):
         - 財務數據不完整
         - 計算數據暫時無法取得
     """
+    logger.info(f"工具調用: get_stock_valuation_ratios, 參數: symbol={symbol}")
     return await valuation_tool.safe_execute(symbol=symbol)
 
 
@@ -529,6 +544,7 @@ async def get_dividend_rights_schedule(symbol: str = ""):
         - 尚無除權息資料
         - 資料來源暫時無法存取
     """
+    logger.info(f"工具調用: get_dividend_rights_schedule, 參數: symbol={symbol}")
     return await dividend_schedule_tool.safe_execute(symbol=symbol)
 
 
@@ -572,6 +588,7 @@ async def get_stock_monthly_trading(symbol: str):
         - 月交易資料尚未彙整
         - 資料來源暫時無法存取
     """
+    logger.info(f"工具調用: get_stock_monthly_trading, 參數: symbol={symbol}")
     return await trading_statistics_tool.get_monthly_trading(symbol)
 
 
@@ -613,6 +630,7 @@ async def get_stock_yearly_trading(symbol: str):
         - 年交易資料尚未彙整
         - 資料來源暫時無法存取
     """
+    logger.info(f"工具調用: get_stock_yearly_trading, 參數: symbol={symbol}")
     return await trading_statistics_tool.get_yearly_trading(symbol)
 
 
@@ -653,6 +671,7 @@ async def get_stock_monthly_average(symbol: str):
         - 月均價資料尚未計算
         - 資料來源暫時無法存取
     """
+    logger.info(f"工具調用: get_stock_monthly_average, 參數: symbol={symbol}")
     return await trading_statistics_tool.get_monthly_average(symbol)
 
 
@@ -700,6 +719,7 @@ async def get_margin_trading_info():
         - 資料來源暫時無法存取
         - 服務暫時異常
     """
+    logger.info("工具調用: get_margin_trading_info")
     return await margin_trading_tool.safe_execute()
 
 
@@ -743,6 +763,7 @@ async def get_real_time_trading_stats():
         - 資料來源暫時無法存取
         - 服務暫時異常
     """
+    logger.info("工具調用: get_real_time_trading_stats")
     return await trading_stats_tool.safe_execute()
 
 
@@ -781,6 +802,7 @@ async def get_etf_regular_investment_ranking():
         - 資料來源暫時無法存取
         - 服務暫時異常
     """
+    logger.info("工具調用: get_etf_regular_investment_ranking")
     return await etf_ranking_tool.safe_execute()
 
 
@@ -819,6 +841,7 @@ async def get_market_index_info():
         - 資料來源暫時無法存取
         - 發行量加權股價指數資料不存在
     """
+    logger.info("工具調用: get_market_index_info")
     return await index_info_tool.safe_execute()
 
 
@@ -868,6 +891,7 @@ async def get_market_historical_index():
         - 資料來源暫時無法存取
         - 無法取得市場指數資料
     """
+    logger.info("工具調用: get_market_historical_index")
     return await historical_index_tool.safe_execute()
 
 
@@ -909,6 +933,7 @@ async def get_foreign_investment_by_industry(count: int = 10):
         - 資料來源暫時無法存取
         - 服務暫時異常
     """
+    logger.info(f"工具調用: get_foreign_investment_by_industry, 參數: count={count}")
     return await foreign_investment_tool.get_investment_by_industry(count=count)
 
 
@@ -945,6 +970,7 @@ async def get_top_foreign_holdings():
         - 資料來源暫時無法存取
         - 服務暫時異常
     """
+    logger.info("工具調用: get_top_foreign_holdings")
     return await foreign_investment_tool.get_top_holdings()
 
 
@@ -984,6 +1010,7 @@ async def get_taiwan_holiday_info(date: str):
         - API 服務異常
         - 網路連線問題
     """
+    logger.info(f"工具調用: get_taiwan_holiday_info, 參數: date={date}")
     return await holiday_tool.execute(date=date)
 
 
@@ -1023,12 +1050,13 @@ async def check_taiwan_trading_day(date: str):
         - API 服務異常
         - 網路連線問題
     """
+    logger.info(f"工具調用: check_taiwan_trading_day, 參數: date={date}")
     return await trading_day_tool.execute(date=date)
 
 
 def main():
     """主程式入口點"""
-    logger.info("啟動新架構 Market MCP Server (FastMCP 模式)")
+    logger.info("啟動 Market MCP Server (FastMCP 模式)")
     mcp.run()
 
 

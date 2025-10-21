@@ -81,15 +81,32 @@ class CacheManager:
                 if data is not None:
                     with self.stats_lock:
                         self.hit_count += 1
-                    logger.debug(f"快取命中: {cache_key}")
+
+                    # 詳細的快取命中日誌
+                    cached_at = data.get("cached_at", 0)
+                    ttl = data.get("ttl_seconds", self.ttl_seconds)
+                    age_seconds = time.time() - cached_at
+                    data_size = sys.getsizeof(data.get("data"))
+
+                    logger.info(
+                        f"快取命中 [{cache_key}] - "
+                        f"年齡: {age_seconds:.1f}s/{ttl}s, "
+                        f"大小: {data_size} bytes, "
+                        f"命中率: {self.hit_count}/{self.hit_count + self.miss_count}"
+                    )
+                    logger.debug(f"快取數據詳情: {cache_key} = {data}")
                     return data
                 else:
                     with self.stats_lock:
                         self.miss_count += 1
-                    logger.debug(f"快取未命中: {cache_key}")
+
+                    logger.info(
+                        f"快取未命中 [{cache_key}] - "
+                        f"命中率: {self.hit_count}/{self.hit_count + self.miss_count}"
+                    )
                     return None
             except Exception as e:
-                logger.error(f"取得快取資料時發生錯誤 {cache_key}: {e}")
+                logger.error(f"取得快取資料時發生錯誤 {cache_key}: {e}", exc_info=True)
                 with self.stats_lock:
                     self.miss_count += 1
                 return None

@@ -148,7 +148,7 @@ class TWStockAPIClient:
                 results = securities_db.search_securities(symbol)
                 if results:
                     resolved_symbol = results[0].stock_code
-                    logger.info(
+                    logger.debug(
                         f"從資料庫解析: {symbol} -> {resolved_symbol} ({results[0].company_name})"
                     )
                 else:

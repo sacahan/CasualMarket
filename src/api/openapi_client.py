@@ -38,6 +38,7 @@ class OpenAPIClient:
             f"HTTP Client 設定: User-Agent={self.USER_AGENT}, timeout=30.0s, verify=False"
         )
 
+    @with_cache(enable_rate_limit=False)
     async def get_data(self, endpoint: str) -> list[dict[str, Any]]:
         """
         從台灣證交所 OpenAPI 端點取得資料，具備快取和速率限制功能。
@@ -73,7 +74,6 @@ class OpenAPIClient:
             logger.error(f"請求失敗: {url} - {type(e).__name__}: {e}")
             raise Exception(f"取得資料失敗: {e}") from e
 
-    @with_cache(enable_rate_limit=False)
     async def get_company_data(
         self, endpoint: str, symbol: str
     ) -> dict[str, Any] | None:
@@ -135,7 +135,6 @@ class OpenAPIClient:
             logger.error(f"取得最新市場資料失敗: {e}")
             return []
 
-    @with_cache(enable_rate_limit=False)
     async def get_industry_api_suffix(self, symbol: str) -> str:
         """
         根據公司產業別取得適當的 API 後綴。

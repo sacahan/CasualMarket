@@ -95,11 +95,11 @@ class ToolBase(ABC):
             執行結果
         """
         try:
-            self.logger.info(f"執行工具 {self.name}")
+            self.logger.debug(f"執行工具 {self.name}")
             result = await self.execute(**kwargs)
 
             if result.success:
-                self.logger.info(f"工具 {self.name} 執行成功")
+                self.logger.debug(f"工具 {self.name} 執行成功")
             else:
                 self.logger.warning(
                     f"工具 {self.name} 執行失敗: {result.error or 'Unknown error'}"
