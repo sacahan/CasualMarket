@@ -96,7 +96,7 @@ class ConfigManager:
     def _merge_config(self, target: dict, source: dict) -> None:
         """
         遞迴合併源配置到目標配置。
-        
+
         邏輯：
         - 如果鍵值指向字典，遞迴合併
         - 否則直接覆蓋目標值（源配置優先級更高）
@@ -116,15 +116,15 @@ class ConfigManager:
     def get(self, key_path: str, default: Any = None) -> Any:
         """
         使用點符號表示法取得配置值。
-        
+
         示例：
             get('rate_limiting.per_stock_interval_seconds')
             get('caching.ttl_seconds')
-        
+
         Args:
             key_path: 以點分隔的鍵路徑
             default: 如果鍵不存在則返回的預設值
-        
+
         Returns:
             配置值或預設值
         """
@@ -145,16 +145,16 @@ class ConfigManager:
     def set(self, key_path: str, value: Any, save_to_file: bool = False) -> bool:
         """
         使用點符號表示法設定配置值。
-        
+
         示例：
             set('rate_limiting.per_stock_interval_seconds', 30.0)
             set('caching.ttl_seconds', 60, save_to_file=True)
-        
+
         Args:
             key_path: 以點分隔的鍵路徑
             value: 要設定的值
             save_to_file: 是否持久化到檔案
-        
+
         Returns:
             True 如果設定成功
         """
@@ -212,15 +212,15 @@ class ConfigManager:
     ) -> bool:
         """
         批量更新限速配置參數。
-        
+
         允許同時更新多個限速參數。只有非 None 的參數才會被更新。
-        
+
         Args:
             per_stock_interval: 單個股票的限速間隔（秒）
             global_limit_per_minute: 全域每分鐘限制（請求數）
             per_second_limit: 每秒限制（請求數）
             save_to_file: 是否持久化變更到檔案
-        
+
         Returns:
             True 如果更新成功
         """

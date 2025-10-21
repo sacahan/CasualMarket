@@ -7,7 +7,6 @@
 
 import asyncio
 import os
-import time
 from datetime import datetime
 from typing import Any
 
@@ -25,51 +24,6 @@ from ..securities_db import get_securities_database
 from ..utils.logging import get_logger
 from ..utils.validators import determine_market_type, validate_taiwan_stock_symbol
 from .decorators import with_rate_limit
-
-# 設置日誌
-logger = get_logger(__name__)
-
-
-class TWStockAPIClient:
-    """
-    台灣證券交易所 API 客戶端。
-
-    負責處理與證交所 API 的通信，包含請求建構、發送、
-    回應解析和錯誤處理。
-    """
-
-    def __init__(self, enable_cache: bool = True, enable_rate_limit: bool = True):
-        """初始化 API 客戶端。"""
-        logger.debug("初始化 TWStockAPIClient")
-
-        self.enable_cache = enable_cache
-        self.enable_rate_limit = enable_rate_limit
-
-        # 從環境變數讀取配置，如果沒有則使用默認值
-        self.base_url = os.getenv(
-            "MARKET_MCP_TWSE_API_URL",
-            "https://mis.twse.com.tw/stock/api/getStockInfo.jsp",
-        )
-        self.timeout = float(os.getenv("MARKET_MCP_API_TIMEOUT", "5.0"))
-        self.max_retries = int(os.getenv("MARKET_MCP_API_RETRIES", "3"))
-        self.parser = create_parser()
-
-        logger.debug(
-            f"API 配置 - URL: {self.base_url}, timeout: {self.timeout}s, max_retries: {self.max_retries}"
-        )
-
-        # 設定 HTTP 客戶端標頭
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Referer": "https://mis.twse.com.tw/stock/fibest.jsp",
-        }
-
-        logger.debug("TWStockAPIClient 初始化完成")
-
 
 # 設置日誌
 logger = get_logger(__name__)

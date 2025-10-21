@@ -207,7 +207,7 @@ class TWStockDataParser:
     def _extract_price_from_dict(self, data: dict, price_type: str) -> float:
         """
         從字典中提取價格欄位。
-        
+
         特殊處理：
         - API 回傳 "-" 表示無資料，轉換為 0.0
         - 驗證價格合理性
@@ -226,7 +226,7 @@ class TWStockDataParser:
     def _calculate_change_percent(self, current_price: float, change: float) -> float:
         """
         計算漲跌幅百分比。
-        
+
         公式: 漲跌幅 = 漲跌金額 / 昨收價 = 漲跌金額 / (成交價 - 漲跌金額)
         """
         # 異常情況：零價格或零變化
@@ -244,7 +244,7 @@ class TWStockDataParser:
     def _extract_volume_from_dict(self, data: dict) -> int:
         """
         從字典中提取成交量。
-        
+
         特殊處理：
         - API 回傳 "-" 表示無資料，轉換為 0
         - 驗證成交量合理性
@@ -264,11 +264,11 @@ class TWStockDataParser:
     ) -> tuple[list[float], list[int], list[float], list[int]]:
         """
         從字典中解析五檔買賣資料。
-        
+
         API 回傳的買賣資料格式為串接字串：
         - bid_data: "價格1_數量1,價格2_數量2,..." (最多5檔)
         - ask_data: 同上
-        
+
         解析失敗時優雅降級返回空清單，確保不會因為五檔解析失敗而中斷整個流程。
         """
         try:
@@ -292,7 +292,7 @@ class TWStockDataParser:
     def _parse_update_time_from_dict(self, data: dict) -> datetime:
         """
         從字典中解析更新時間。
-        
+
         時間組合邏輯：
         - API 回傳日期 (YYYYMMDD) 和時間 (HH:MM:SS) 分開存儲
         - 組合成完整的 datetime 物件

@@ -108,7 +108,7 @@ class FinancialStatementsTool(ToolBase):
     def _format_income_statement(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         格式化損益表資料。
-        
+
         將原始 API 回應轉換為結構化格式，包含原始資料和關鍵財務指標。
         關鍵指標包括營業收入、營業利益、淨利和每股盈餘。
         """
@@ -127,7 +127,7 @@ class FinancialStatementsTool(ToolBase):
     def _format_balance_sheet(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         格式化資產負債表資料。
-        
+
         將原始 API 回應轉換為結構化格式，包含原始資料和關鍵財務指標。
         關鍵指標包括總資產、負債、股東權益和每股淨值。
         """
