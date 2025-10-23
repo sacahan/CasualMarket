@@ -137,67 +137,174 @@ uvx --from . casual-market-mcp
 
 ## 使用範例
 
+以下是透過 Claude Desktop 或其他 MCP 客戶端使用這些工具的範例。
+
 ### 股票價格查詢
 
-```python
-# 使用股票代碼
-result = await get_taiwan_stock_price("2330")
+**使用者提問：**
+> "請查詢台積電目前的股價"
 
-# 使用公司名稱
-result = await get_taiwan_stock_price("台積電")
+**AI 回應：**
+AI 會自動調用 `get_taiwan_stock_price` 工具，參數為 `"台積電"` 或 `"2330"`，然後返回即時股價、漲跌幅、成交量等資訊。
+
+**工具調用：**
+
+```json
+{
+  "tool": "get_taiwan_stock_price",
+  "arguments": {
+    "symbol": "2330"
+  }
+}
 ```
 
 ### 模擬交易
 
-```python
-# 買入 1000 股台積電（市價）
-buy_result = await buy_taiwan_stock("2330", 1000)
+**使用者提問：**
+> "幫我模擬買入 1000 股台積電"
 
-# 限價買入 2000 股（每股 510 元）
-buy_result = await buy_taiwan_stock("2330", 2000, 510.0)
+**AI 回應：**
+AI 會調用 `buy_taiwan_stock` 工具，計算手續費和總成本，並返回完整的交易結果。
 
-# 賣出 1000 股
-sell_result = await sell_taiwan_stock("2330", 1000)
+**工具調用：**
+
+```json
+{
+  "tool": "buy_taiwan_stock",
+  "arguments": {
+    "symbol": "2330",
+    "quantity": 1000
+  }
+}
+```
+
+**限價交易範例：**
+> "以每股 510 元的價格買入 2000 股台積電"
+
+```json
+{
+  "tool": "buy_taiwan_stock",
+  "arguments": {
+    "symbol": "2330",
+    "quantity": 2000,
+    "price": 510.0
+  }
+}
 ```
 
 ### 財務資訊查詢
 
-```python
-# 公司基本資料
-profile = await get_company_profile("2330")
+**使用者提問：**
+> "請分析台積電的財務狀況，包括損益表和公司基本資料"
 
-# 損益表
-income = await get_company_income_statement("2330")
+**AI 回應：**
+AI 會依序調用多個工具來獲取完整資訊：
 
-# 股利分配
-dividend = await get_company_dividend("2330")
+1. **公司基本資料**
 
-# 估值比率
-valuation = await get_stock_valuation_ratios("2330")
+```json
+{
+  "tool": "get_company_profile",
+  "arguments": {
+    "symbol": "2330"
+  }
+}
 ```
+
+2. **損益表**
+
+```json
+{
+  "tool": "get_company_income_statement",
+  "arguments": {
+    "symbol": "2330"
+  }
+}
+```
+
+3. **估值比率**
+
+```json
+{
+  "tool": "get_stock_valuation_ratios",
+  "arguments": {
+    "symbol": "2330"
+  }
+}
+```
+
+### 綜合分析範例
+
+**使用者提問：**
+> "我想了解台積電是否適合投資，請幫我分析股價、財務狀況、股利配息和外資持股情況"
+
+**AI 工作流程：**
+
+AI 會智慧地調用多個工具來完成綜合分析：
+
+1. 查詢即時股價 (`get_taiwan_stock_price`)
+2. 獲取公司基本資料 (`get_company_profile`)
+3. 查看估值比率 (`get_stock_valuation_ratios`)
+4. 檢查股利配息記錄 (`get_company_dividend`)
+5. 查詢外資持股前 20 名 (`get_top_foreign_holdings`)
+6. 分析月營收趨勢 (`get_company_monthly_revenue`)
+
+然後將所有資訊整合，提供完整的投資建議。
 
 ### 市場統計
 
-```python
-# 實時交易統計
-stats = await get_real_time_trading_stats()
+**使用者提問：**
+> "現在台股大盤的情況如何？"
 
-# 融資融券資訊
-margin = await get_margin_trading_info()
+**AI 回應：**
 
-# ETF排名
-etf_rank = await get_etf_regular_investment_ranking()
+```json
+{
+  "tool": "get_real_time_trading_stats",
+  "arguments": {}
+}
 ```
 
-### 節假日判斷
+AI 會返回當前市場的即時統計，包括成交量、漲跌家數、漲停跌停股票等。
 
-```python
-# 查詢特定日期是否為假日
-holiday = await get_taiwan_holiday_info("2025-01-01")
+### 節假日與交易日判斷
 
-# 判斷是否為交易日
-trading_day = await check_taiwan_trading_day("2025-10-07")
+**使用者提問：**
+> "2025年10月10日是交易日嗎？"
+
+**AI 回應：**
+
+```json
+{
+  "tool": "check_taiwan_trading_day",
+  "arguments": {
+    "date": "2025-10-10"
+  }
+}
 ```
+
+AI 會告訴你該日期是否為交易日，並說明原因（是否為週末或國定假日）。
+
+### 對話式交互範例
+
+**完整對話流程：**
+
+**使用者：** "請幫我查詢鴻海的股價，如果股價低於 100 元，就模擬買入 2000 股"
+
+**AI 執行：**
+
+1. 先調用 `get_taiwan_stock_price("鴻海")` 查詢股價
+2. 根據返回結果判斷價格
+3. 如果符合條件，調用 `buy_taiwan_stock("2317", 2000)`
+4. 整合結果並回覆使用者
+
+**使用者：** "今天外資買超最多的是哪些股票？"
+
+**AI 執行：**
+
+1. 調用 `get_top_foreign_holdings()` 獲取外資持股資訊
+2. 分析買賣超數據
+3. 整理並回覆前幾名的股票及買超金額
 
 ## 配置說明
 
