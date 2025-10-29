@@ -10,41 +10,52 @@
 ## 目錄
 
 - [快速開始](#快速開始)
+- [MCP 安裝與配置](#mcp-安裝與配置)
 - [核心功能](#核心功能)
 - [工具列表](#工具列表)
 - [使用範例](#使用範例)
-- [配置說明](#配置說明)
-- [測試與品質](#測試與品質)
-- [專案結構](#專案結構)
-- [技術架構](#技術架構)
-- [部署](#部署)
-- [貢獻指南](#貢獻指南)
+- [支援](#支援)
+- [許可證](#許可證)
 
 ## 快速開始
 
-### 安裝依賴
+CasualMarket MCP Server 已發佈在 PyPI，您可以直接透過 `uvx` 安裝並在支援 MCP 的工具中使用，無需本地配置。
 
-```bash
-# 使用 uv 套件管理器
-uv sync
+**系統需求：**
 
-# 或使用 pip
-pip install -r requirements.txt
-```
+- Python 3.12+
+- [uv 套件管理器](https://github.com/astral-sh/uv)（用於執行 MCP Server）
 
-### 執行伺服器
+**最簡單的方式是根據您使用的工具，按照下方「MCP 安裝與配置」部分進行配置即可。**
 
-```bash
-# 開發模式
-uv run python -m src.main
+### MCP 安裝與配置
 
-# 生產模式
-uvx --from . casual-market-mcp
-```
-
-### Claude Desktop 配置
+#### Claude Desktop 配置
 
 編輯 Claude Desktop 配置檔：
+
+**配置檔位置：**
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+**配置內容（推薦方式 - 使用 GitHub Repo）：**
+
+```json
+{
+  "mcpServers": {
+    "casual-market": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/sacahan/CasualMarket", "casual-market-mcp"],
+      "env": {
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+**配置內容（本地開發方式）：**
 
 ```json
 {
@@ -60,10 +71,186 @@ uvx --from . casual-market-mcp
 }
 ```
 
-配置檔位置：
+#### Cursor 配置
 
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+編輯 Cursor 配置檔：
+
+**配置檔位置：**
+
+- macOS: `~/Library/Application Support/Cursor/User/settings.json`
+- Windows: `%APPDATA%\Cursor\User\settings.json`
+- Linux: `~/.config/Cursor/User/settings.json`
+
+**配置內容：**
+
+在 `settings.json` 中加入以下配置：
+
+```json
+{
+  "mcpServerSettings": {
+    "casual-market": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/sacahan/CasualMarket", "casual-market-mcp"],
+      "env": {
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+或者直接編輯 `.cursor/mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "casual-market": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/sacahan/CasualMarket", "casual-market-mcp"],
+      "env": {
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+#### VS Code 配置（通過 Claude 擴展）
+
+如果使用 VS Code 中的 Claude 擴展，配置方法類似：
+
+**配置檔位置：**
+
+- macOS: `~/Library/Application Support/Code/User/settings.json`
+- Windows: `%APPDATA%\Code\User\settings.json`
+- Linux: `~/.config/Code/User/settings.json`
+
+**配置內容：**
+
+```json
+{
+  "claude.mcpServers": {
+    "casual-market": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/sacahan/CasualMarket", "casual-market-mcp"],
+      "env": {
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+#### CodePilot / 其他 MCP 客戶端
+
+對於支援 MCP 協定的其他工具，通用配置範本：
+
+```json
+{
+  "mcpServers": {
+    "casual-market": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/sacahan/CasualMarket", "casual-market-mcp"],
+      "env": {
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+#### 配置參數說明
+
+MCP Server 支援以下環境變數：
+
+**API 和快取相關：**
+
+| 參數 | 說明 | 預設值 |
+|------|------|-------|
+| `LOG_LEVEL` | 日誌級別 | `INFO` |
+| `MARKET_MCP_API_TIMEOUT` | API 請求超時時間（秒） | `10` |
+| `MARKET_MCP_API_RETRIES` | API 請求重試次數 | `5` |
+| `MARKET_MCP_CACHE_TTL` | 快取存活時間（秒） | `1800` |
+| `MARKET_MCP_CACHE_MAX_SIZE` | 快取最大條目數 | `1000` |
+| `MARKET_MCP_CACHE_MAX_MEMORY_MB` | 快取最大記憶體使用（MB） | `200.0` |
+| `MARKET_MCP_CACHING_ENABLED` | 是否啟用快取 | `true` |
+
+**限速相關：**
+
+| 參數 | 說明 | 預設值 |
+|------|------|-------|
+| `MARKET_MCP_RATE_LIMIT_INTERVAL` | 每個股票的請求間隔（秒） | `1.0` |
+| `MARKET_MCP_RATE_LIMIT_GLOBAL_PER_MINUTE` | 全域每分鐘請求限制 | `200` |
+| `MARKET_MCP_RATE_LIMIT_PER_SECOND` | 每秒請求限制 | `50` |
+| `MARKET_MCP_RATE_LIMITING_ENABLED` | 是否啟用限速功能 | `false` |
+
+**監控相關：**
+
+| 參數 | 說明 | 預設值 |
+|------|------|-------|
+| `MARKET_MCP_MONITORING_STATS_RETENTION_HOURS` | 統計資料保留時間（小時） | `24` |
+| `MARKET_MCP_MONITORING_CACHE_HIT_RATE_TARGET` | 快取命中率目標（百分比） | `80.0` |
+
+**推薦配置範例（快速開始）：**
+
+```json
+{
+  "mcpServers": {
+    "casual-market": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/sacahan/CasualMarket", "casual-market-mcp"],
+      "env": {
+        "LOG_LEVEL": "INFO",
+        "MARKET_MCP_API_TIMEOUT": "10",
+        "MARKET_MCP_CACHE_TTL": "1800",
+        "MARKET_MCP_CACHE_MAX_SIZE": "1000"
+      }
+    }
+  }
+}
+```
+
+**高效能配置範例（啟用限速和監控）：**
+
+```json
+{
+  "mcpServers": {
+    "casual-market": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/sacahan/CasualMarket", "casual-market-mcp"],
+      "env": {
+        "LOG_LEVEL": "INFO",
+        "MARKET_MCP_API_TIMEOUT": "15",
+        "MARKET_MCP_CACHE_TTL": "3600",
+        "MARKET_MCP_CACHE_MAX_SIZE": "2000",
+        "MARKET_MCP_CACHE_MAX_MEMORY_MB": "500",
+        "MARKET_MCP_RATE_LIMITING_ENABLED": "true",
+        "MARKET_MCP_RATE_LIMIT_INTERVAL": "2.0",
+        "MARKET_MCP_RATE_LIMIT_GLOBAL_PER_MINUTE": "100"
+      }
+    }
+  }
+}
+```
+
+**調試配置範例（詳細日誌）：**
+
+```json
+{
+  "mcpServers": {
+    "casual-market": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/sacahan/CasualMarket", "casual-market-mcp"],
+      "env": {
+        "LOG_LEVEL": "DEBUG",
+        "MARKET_MCP_API_TIMEOUT": "20",
+        "MARKET_MCP_CACHE_TTL": "600",
+        "MARKET_MCP_CACHING_ENABLED": "true"
+      }
+    }
+  }
+}
+```
 
 ## 核心功能
 
@@ -305,202 +492,6 @@ AI 會告訴你該日期是否為交易日，並說明原因（是否為週末�
 1. 調用 `get_top_foreign_holdings()` 獲取外資持股資訊
 2. 分析買賣超數據
 3. 整理並回覆前幾名的股票及買超金額
-
-## 配置說明
-
-### 環境變數
-
-複製 `.env.simple` 並根據需求修改：
-
-```bash
-cp .env.simple .env
-```
-
-### 主要配置項目
-
-```env
-# 日誌級別：DEBUG, INFO, WARNING, ERROR
-MARKET_MCP_LOG_LEVEL=INFO
-
-# API 請求超時時間（秒）
-MARKET_MCP_API_TIMEOUT=10
-
-# 限速：每個股票的請求間隔（秒）
-MARKET_MCP_RATE_LIMIT_INTERVAL=30.0
-
-# 快取：快取存活時間（秒）
-MARKET_MCP_CACHE_TTL=30
-
-# 快取：最大條目數
-MARKET_MCP_CACHE_MAX_SIZE=1000
-```
-
-## 測試與品質
-
-### 運行測試
-
-```bash
-# 運行所有測試
-uv run pytest
-
-# 運行特定測試類別
-uv run pytest tests/server/          # 伺服器功能測試
-uv run pytest tests/tools/           # 工具功能測試
-uv run pytest tests/api/             # API 整合測試
-
-# 生成覆蓋率報告
-uv run pytest --cov=src --cov-report=html
-```
-
-### 代碼品質檢查
-
-```bash
-# 使用 ruff 進行程式碼檢查
-uv run ruff check src/ tests/
-
-# 使用 mypy 進行型別檢查
-uv run mypy src/
-
-# 自動修復可修復的問題
-uv run ruff check --fix src/ tests/
-```
-
-### 測試狀態
-
-- **總測試案例**：110 個
-- **通過測試**：108 個（98%）
-- **跳過測試**：2 個（2%）
-- **失敗測試**：0 個（0%）
-- **程式碼覆蓋率**：62%
-
-## 專案結構
-
-```text
-CasualMarket/
-├── src/
-│   ├── main.py                      # 應用程式入口
-│   ├── server.py                    # MCP 服務器和工具註冊
-│   ├── api/                         # API 客戶端層
-│   │   ├── twse_client.py          # 台灣證交所 API
-│   │   ├── openapi_client.py       # OpenAPI 客戶端
-│   │   ├── holiday_client.py       # 節假日 API
-│   │   └── decorators.py           # 快取和限速裝飾器
-│   ├── tools/                       # MCP 工具實現
-│   │   ├── trading/                # 交易工具
-│   │   ├── financial/              # 財務工具
-│   │   ├── market/                 # 市場工具
-│   │   ├── foreign/                # 外資工具
-│   │   └── base/                   # 基礎類別和工具
-│   ├── models/                      # 資料模型
-│   │   └── mcp_response.py        # MCP 統一回應格式
-│   ├── utils/                       # 工具函數
-│   │   ├── logging.py             # 日誌配置
-│   │   └── validators.py          # 輸入驗證
-│   ├── cache/                       # 快取系統
-│   ├── data/                        # 資料檔案
-│   └── securities_db.py            # 證券資料庫
-├── tests/                           # 測試套件
-│   ├── server/                      # 伺服器測試
-│   ├── tools/                       # 工具測試
-│   ├── api/                         # API 測試
-│   └── mcp_tools/                   # MCP 整合測試
-├── scripts/                         # 輔助腳本
-│   ├── dev-run.sh                  # 開發執行腳本
-│   └── dev-test.sh                 # 開發測試腳本
-├── pyproject.toml                   # 專案配置
-├── README.md                        # 本檔案
-└── LICENSE                          # MIT 授權
-```
-
-## 技術架構
-
-### 核心組件
-
-1. **FastMCP Server** - 使用 `@mcp.tool` 裝飾器簡化工具註冊
-2. **API 客戶端層** - 整合台灣證交所 API 與 OpenAPI
-3. **快取系統** - 整合限速與快取服務
-4. **工具基類** - 提供統一的 MCP 回應格式和錯誤處理
-5. **模型層** - 類型安全的資料模型定義
-
-### 架構模式
-
-- **FastMCP 整合** - 使用 `@mcp.tool` 裝飾器代替傳統 MCP 伺服器設定
-- **模組化設計** - 可插拔的工具組件，易於擴展
-- **統一回應格式** - 所有工具返回 `MCPToolResponse[T]` 格式
-- **多層級驗證** - 符號格式、市場類型、API 回應驗證
-- **錯誤處理** - 統一的錯誤處理和日誌記錄
-
-### 工作流程示例
-
-```python
-# 1. 查詢股票價格
-price_info = await get_taiwan_stock_price("2330")
-
-# 2. 查詢公司財務資訊
-company_profile = await get_company_profile("2330")
-valuation = await get_stock_valuation_ratios("2330")
-
-# 3. 查詢市場統計
-market_stats = await get_real_time_trading_stats()
-
-# 4. 執行模擬交易
-buy_result = await buy_taiwan_stock("2330", 1000)
-
-# 5. 查詢交易統計
-daily_trading = await get_stock_daily_trading("2330")
-```
-
-## 部署
-
-### Docker 部署
-
-```dockerfile
-FROM python:3.12-slim
-
-WORKDIR /app
-COPY . .
-
-RUN pip install uv
-RUN uv sync
-
-CMD ["uv", "run", "python", "-m", "src.main"]
-```
-
-### 系統需求
-
-- Python 3.12+
-- uv 套件管理器
-- 網路連線（用於 API 調用）
-- SQLite 支援
-
-### 效能特性
-
-- **快取機制** - 30秒 TTL，最多1000條目
-- **限速保護** - 每個股票30秒間隔，全域每分鐘20個請求
-- **非同步設計** - 完整的非同步 API，支援高併發
-- **智慧重試** - 最多5次 API 重試
-
-## 貢獻指南
-
-歡迎提交 Issue 和 Pull Request！
-
-### 開發流程
-
-1. Fork 本專案
-2. 建立功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 開啟 Pull Request
-
-### 開發工具
-
-```bash
-# 開發模式運行
-./scripts/dev-run.sh
-
-# 快速測試
-./scripts/dev-test.sh
-```
 
 ## 支援
 
