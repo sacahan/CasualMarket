@@ -7,10 +7,16 @@
 
 一個功能完整的**台灣股票交易 MCP Server**，提供超過 **23 個專業工具**，涵蓋即時股價查詢、財務分析、市場資訊、模擬交易等多種功能。基於 **FastMCP 2.7.0+** 框架開發，具備智慧快取和頻率限制機制。
 
+## 部署模式
+
+✅ **stdio 模式**: 本地開發與 Claude Desktop 整合  
+✅ **Docker + SSE 模式**: 容器化部署，HTTP 介面訪問
+
 ## 目錄
 
 - [快速開始](#快速開始)
 - [MCP 安裝與配置](#mcp-安裝與配置)
+- [Docker 部署](#docker-部署)
 - [核心功能](#核心功能)
 - [工具列表](#工具列表)
 - [使用範例](#使用範例)
@@ -251,6 +257,103 @@ MCP Server 支援以下環境變數：
   }
 }
 ```
+
+## Docker 部署
+
+除了 stdio 模式外，CasualMarket 也支援透過 Docker 容器化部署，並提供 SSE (Server-Sent Events) HTTP 介面。
+
+### 快速啟動
+
+**方式 1: 使用預構建鏡像（推薦）**
+
+```bash
+# 克隆專案
+git clone https://github.com/sacahan/CasualMarket.git
+cd CasualMarket
+
+# 拉取並啟動
+./scripts/docker-run.sh pull
+./scripts/docker-run.sh up
+
+# 查看日誌
+./scripts/docker-run.sh logs
+
+# 測試服務
+./scripts/docker-run.sh test
+```
+
+**方式 2: 本地構建**
+
+```bash
+# 構建鏡像
+./scripts/docker-run.sh build
+
+# 啟動服務
+DOCKER_IMAGE_NAME=casualmarket-mcp:latest ./scripts/docker-run.sh up
+```
+
+**方式 3: Docker Compose**
+
+```bash
+# 啟動服務
+docker-compose up -d
+
+# 停止服務
+docker-compose down
+```
+
+### 服務端點
+
+容器啟動後，可透過以下端點訪問：
+
+- **根端點**: `http://localhost:8000/` - 服務資訊
+- **健康檢查**: `http://localhost:8000/health` - 服務狀態
+- **SSE 端點**: `http://localhost:8000/sse` - MCP 協議通訊（POST）
+- **API 文檔**: `http://localhost:8000/docs` - FastAPI 自動生成文檔
+
+### SSE 客戶端範例
+
+```python
+import requests
+import json
+
+# 列出可用工具
+response = requests.post(
+    "http://localhost:8000/sse",
+    json={
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/list",
+        "params": {}
+    }
+)
+
+# 呼叫工具 - 查詢台積電股價
+response = requests.post(
+    "http://localhost:8000/sse",
+    json={
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+            "name": "get_taiwan_stock_price",
+            "arguments": {"symbol": "2330"}
+        }
+    }
+)
+```
+
+完整的客戶端範例請參考 `examples/sse_client_example.py`。
+
+### Docker 優勢
+
+- ✅ **依賴預先安裝**: 所有套件在建構時下載完成，執行時無需等待
+- ✅ **多階段建構**: 最小化映像檔大小
+- ✅ **健康檢查**: 自動監控服務狀態
+- ✅ **持久化支援**: 日誌和資料庫可掛載到 host 機器
+- ✅ **環境隔離**: 與其他服務完全隔離
+
+詳細的 Docker 部署說明請參閱 [docs/DOCKER.md](docs/DOCKER.md)。
 
 ## 核心功能
 

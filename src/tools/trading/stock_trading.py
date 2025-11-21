@@ -88,12 +88,14 @@ class StockTradingTool(ToolBase):
             }
 
             if executed:
-                self.logger.info(f"買入交易成功: {symbol} x {quantity} @ {order_price}")
+                self.logger.info(
+                    f"買入交易成功: {symbol} -> {quantity} x ${order_price}"
+                )
                 return self._success_response(
                     data={"order": order_data}, status="success"
                 )
             else:
-                self.logger.info(f"買入交易失敗: {symbol} - {execution_message}")
+                self.logger.info(f"買入交易失敗: {symbol} -> {execution_message}")
                 return self._success_response(
                     data={"order": order_data}, status="failed"
                 )
@@ -174,12 +176,14 @@ class StockTradingTool(ToolBase):
             }
 
             if executed:
-                self.logger.info(f"賣出交易成功: {symbol} x {quantity} @ {order_price}")
+                self.logger.info(
+                    f"賣出交易成功: {symbol} -> {quantity} x ${order_price}"
+                )
                 return self._success_response(
                     data={"order": order_data}, status="success"
                 )
             else:
-                self.logger.info(f"賣出交易失敗: {symbol} - {execution_message}")
+                self.logger.info(f"賣出交易失敗: {symbol} -> {execution_message}")
                 return self._success_response(
                     data={"order": order_data}, status="failed"
                 )

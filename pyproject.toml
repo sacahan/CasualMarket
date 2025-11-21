@@ -39,6 +39,9 @@ dependencies = [
     "scipy>=1.16.2",
     "ruff>=0.13.2",
     "mcp>=1.15.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.30.0",
+    "websockets>=14.0",
 ]
 
 [project.optional-dependencies]

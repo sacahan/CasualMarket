@@ -97,3 +97,6 @@ dmypy.json
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Docker environment file
+scripts/.env.docker

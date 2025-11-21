@@ -264,6 +264,17 @@ def with_cache(
             cache_service = _get_cache_service()
             start_time = time.time()  # 記錄開始時間
 
+            # ========== 詳細的快取鍵調試信息 ==========
+            logger.debug(
+                f"[快取鍵生成詳情] 函數: {func.__name__}, "
+                f"位置參數: {args[1:] if len(args) > 1 else 'None'}, "
+                f"關鍵字參數: {kwargs}, "
+                f"前綴: {prefix}"
+            )
+            logger.debug(f"[快取鍵字符串] {cache_key_str}")
+            logger.debug(f"[最終快取鍵] {cache_key}")
+            # ==========================================
+
             try:
                 # 如果要求強制刷新，先清除現有快取
                 if force_refresh:
@@ -281,8 +292,11 @@ def with_cache(
 
                     if cached_data:
                         # 快取命中！直接返回快取數據，無需呼叫 API
-                        logger.info(f"快取命中: {cache_key_str} -> {cache_key}")
                         response_time = (time.time() - start_time) * 1000
+                        logger.info(
+                            f"[✓ API 快取命中] 函數: {func.__name__}, 快取鍵: {cache_key}, "
+                            f"參數: {cache_key_str}, 響應時間: {response_time:.2f}ms"
+                        )
                         await cache_service.record_cached_response(cache_key, prefix)
                         return _parse_cached_response(cached_data["data"])
 
@@ -300,12 +314,19 @@ def with_cache(
                         # 快取命中且未要求強制刷新，直接返回
                         response_time = (time.time() - start_time) * 1000
                         logger.info(
-                            f"[快取命中] 函數: {func.__name__}, 快取鍵: {cache_key}, "
+                            f"[✓ API 快取命中] 函數: {func.__name__}, 快取鍵: {cache_key}, "
                             f"參數: {cache_key_str}, 響應時間: {response_time:.2f}ms"
                         )
+                        logger.debug("[快取命中詳情] 返回快取數據，未執行實際函數")
                         return _parse_cached_response(cached_data["data"])
+                    else:
+                        logger.debug(
+                            f"[快取未命中] 函數: {func.__name__}, 快取鍵: {cache_key}, "
+                            f"參數: {cache_key_str}, 將執行實際函數"
+                        )
 
                 # === 執行實際的 API 呼叫 ===
+                logger.debug(f"[執行實際函數] {func.__name__}")
                 result = await func(*args, **kwargs)
                 response_time = (
                     time.time() - start_time
@@ -321,9 +342,10 @@ def with_cache(
                             cache_key, result_dict, response_time, prefix
                         )
                         logger.info(
-                            f"[已快取] 函數: {func.__name__}, 快取鍵: {cache_key}, "
+                            f"[✓ API 結果已快取] 函數: {func.__name__}, 快取鍵: {cache_key}, "
                             f"參數: {cache_key_str}, 響應時間: {response_time:.2f}ms"
                         )
+                        logger.debug("[快取保存詳情] 將結果存入快取，TTL: 預設值")
 
                 return result
 
@@ -443,4 +465,4 @@ def _parse_cached_response(data: dict) -> Any:
     except Exception:
         # 解析失敗，安全地返回原始字典
         return data
-        return data
+

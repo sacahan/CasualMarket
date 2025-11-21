@@ -10,11 +10,18 @@ CasualMarket is a Taiwan Stock Exchange MCP (Model Context Protocol) Server that
 
 ### Server Execution
 
+CasualMarket supports two deployment modes:
+1. **stdio mode**: Local development and Claude Desktop integration
+2. **Docker + SSE mode**: Containerized deployment with HTTP interface
+
 #### Production Execution
 
 ```bash
-# Production deployment (uses cached builds)
+# stdio mode (local/desktop)
 uvx --from . casual-market-mcp
+
+# Docker mode (SSE HTTP interface)
+docker-compose up -d
 ```
 
 #### Development Execution (Recommended for Active Development)
@@ -35,6 +42,59 @@ uv cache clean
 
 # Development mode automatically uses latest code
 # No cache clearing needed when using uv run
+```
+
+### Docker Deployment
+
+```bash
+# Pull and start container (recommended)
+./scripts/docker-run.sh pull
+./scripts/docker-run.sh up
+
+# Or build locally
+./scripts/docker-run.sh build
+DOCKER_IMAGE_NAME=casualmarket-mcp:latest ./scripts/docker-run.sh up
+
+# View logs
+./scripts/docker-run.sh logs
+
+# Test service
+./scripts/docker-run.sh test
+
+# Stop and remove container
+./scripts/docker-run.sh down
+
+# Multi-platform build and push to Docker Hub
+./scripts/build_docker.sh --platform all --action build-push
+
+
+```
+
+**Docker Endpoints:**
+- Root: `http://localhost:8000/`
+- Health: `http://localhost:8000/health`
+- SSE: `http://localhost:8000/sse` (MCP protocol)
+- Docs: `http://localhost:8000/docs`
+
+**Quick Commands:**
+```bash
+# View service info
+./scripts/docker-run.sh info
+
+# Enter container shell
+./scripts/docker-run.sh shell
+
+# Restart service
+./scripts/docker-run.sh restart
+
+# Complete cleanup
+./scripts/docker-run.sh clean
+```
+
+**Example SSE Client:**
+```bash
+# Run example client
+python examples/sse_client_example.py
 ```
 
 ### Testing
@@ -156,6 +216,24 @@ uv run python tests/api/debug_api.py
 3. **Error Handling**: Graceful fallbacks with detailed error messages and client switching
 4. **Database Integration**: Company names resolved to stock codes via local SQLite database before API calls
 
+### Dual-Mode Architecture
+
+The server supports two operational modes using the same core codebase:
+
+1. **stdio Mode** (`src/main.py` → `src/server.py`):
+   - Direct MCP protocol communication via stdin/stdout
+   - Used for local development and desktop integrations (Claude Desktop, Cursor)
+   - Started with: `uvx --from . casual-market-mcp` or `uv run python -m src.main`
+
+2. **SSE HTTP Mode** (`src/sse_server.py`):
+   - FastAPI-based HTTP server with SSE streaming
+   - MCP protocol wrapped in JSON-RPC 2.0 over HTTP
+   - Designed for Docker deployment and remote access
+   - Started with: `docker-compose up -d` or `python -m src.sse_server`
+   - Endpoints: `/health`, `/sse`, `/docs`
+
+Both modes share the same tools, API clients, and business logic. The SSE server (`src/sse_server.py`) acts as an HTTP adapter that translates HTTP requests into MCP protocol calls.
+
 ## Module Dependencies
 
 ### Critical Dependencies
@@ -165,6 +243,8 @@ uv run python tests/api/debug_api.py
 - **Pydantic**: Data validation and serialization
 - **CacheTools**: In-memory caching implementation
 - **Loguru**: Structured logging
+- **FastAPI**: HTTP server framework for SSE mode (Docker deployment)
+- **Uvicorn**: ASGI server for running FastAPI application
 
 ### Development Dependencies
 
@@ -244,6 +324,12 @@ Example Claude Desktop configuration in `examples/claude_desktop_config.json`:
 - **Entry Point**: `src/main.py` contains the main() function for uvx execution
 - **Tools**: MCP tools defined directly in `src/server.py` using FastMCP decorators
 - **Tests**: Comprehensive test suite in `tests/` with category-based organization
+- **Docker Files**: All Docker-related files in `scripts/` directory
+  - `scripts/Dockerfile` - Multi-stage Docker build
+  - `scripts/.env.docker` - Docker environment configuration
+  - `scripts/.env.docker.example` - Configuration template
+  - `scripts/build_docker.sh` - Multi-platform build script
+  - `scripts/docker-run.sh` - Container management script
 
 ## Development Guidelines
 
