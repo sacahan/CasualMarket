@@ -1,12 +1,8 @@
 {
     "servers": {
-        "casual-market": {
-            "command": "uvx",
-            "args": [
-                "--from",
-                ".",
-                "casual-market-mcp"
-            ]
+        "casual-market-mcp": {
+            "type": "sse",
+            "url": "http://localhost:8066/sse"
         }
     }
 }

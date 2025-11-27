@@ -28,10 +28,10 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 專案根目錄
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 預設環境文件
-ENV_FILE="${PROJECT_DIR}/scripts/.env.docker"
+ENV_FILE="./.env.docker"
 
 # Docker 鏡像和容器名稱
 IMAGE_NAME="${DOCKER_IMAGE_NAME:-sacahan/casual-market-mcp:latest}"
@@ -40,15 +40,27 @@ CONTAINER_NAME="${CONTAINER_NAME:-casual-market}"
 # 讀取 Docker 端口配置（預設 8066）
 DOCKER_PORT="${DOCKER_PORT:-8066}"
 
+# Docker 網路名稱
+NETWORK_NAME="casual-network"
+
+# 確保 Docker 網路存在
+ensure_network() {
+    if ! docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
+        echo -e "${BLUE}📡 建立 Docker 網路: $NETWORK_NAME${NC}"
+        docker network create "$NETWORK_NAME"
+        echo -e "${GREEN}✓ Docker 網路已建立${NC}"
+    fi
+}
+
 # 檢查 .env.docker 是否存在
 check_env_file() {
     if [ ! -f "$ENV_FILE" ]; then
         echo -e "${YELLOW}⚠️  未找到 $ENV_FILE${NC}"
         echo -e "${YELLOW}正在從示例複製...${NC}"
-        if [ -f "${PROJECT_DIR}/scripts/.env.docker.example" ]; then
-            cp "${PROJECT_DIR}/scripts/.env.docker.example" "$ENV_FILE"
+        if [ -f "${PROJECT_DIR}/.env.docker.example" ]; then
+            cp "${PROJECT_DIR}/.env.docker.example" "$ENV_FILE"
             echo -e "${GREEN}✓ 已建立 $ENV_FILE${NC}"
-            echo -e "${BLUE}💡 您可以編輯 scripts/.env.docker 檔案來自訂配置${NC}"
+            echo -e "${BLUE}💡 您可以編輯 ./.env.docker 檔案來自訂配置${NC}"
         else
             echo -e "${YELLOW}ℹ️  未找到 .env.docker.example，將使用預設配置${NC}"
         fi
@@ -76,6 +88,7 @@ pull_image() {
 
 # 啟動容器
 start_container() {
+    ensure_network
     check_env_file
 
     # 檢查是否已運行
@@ -105,10 +118,12 @@ start_container() {
     # 啟動容器
     docker run -d \
         --name "$CONTAINER_NAME" \
+        --network "$NETWORK_NAME" \
         $ENV_ARGS \
         -p 8066:8000 \
         -v casualmarket-logs:/app/logs \
         -v casualmarket-data:/app/src/data \
+		-e TZ=Asia/Taipei \
         --restart unless-stopped \
         "$IMAGE_NAME"
 
